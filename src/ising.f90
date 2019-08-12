@@ -7,10 +7,11 @@ PROGRAM  isingmodel
     ! Make use of a module
     USE functions
 
+    Implicit none
     integer :: cnt, cn1, nbin, ipar
     REAL,dimension(3)    :: rn
     real    :: rn1, rn2
-    REAL(8) :: eecum, eecum2, ebavg,eebavg,eebavg2 
+    REAL(8) :: eecum, ecum1, eecum2, ebavg,eebavg,eebavg2 
     INTEGER :: ecount, ecount2, cntmu, ibavg,iibavg,isgd
     real(8) :: sigma,learning_rate
     real(8) :: energy,energy_err
@@ -22,15 +23,15 @@ PROGRAM  isingmodel
 
 
     call MPI_INIT(ierr)
-    call MPI_COMM_SIZE(MPI_COMM_WORLD, numtask, ierr)
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
 
-    !#ifdef DEBUG
+    !#ifdef __DEBUG
     write(*,*)'My rank is', rank
     write(*,*)
     !#endif
 
-    if (rank == 0 ) then 
+    if ( rank == 0 ) then 
         write(*,*)'My rank is', rank
         write(*,*)
         OPEN(unit=8,File='energy.dat',Status='unknown')
@@ -41,20 +42,22 @@ PROGRAM  isingmodel
 
     ! Initialize quantities by root rank 
 
-    if (rank == 0 ) then 
-        CALL initialize(a)
-    endif
+    CALL initialize(a)
+
+    write(*,*) "I am: ", rank ," ::::: ", a
+    write(*,*)
 
     sigma = 0.5
 
     !**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
 
-    rn1 = ran2(idum)
-    rn2 = ran2(idum)
+
 
     do ipar = 1, 3
 
+        rn1 = ran2(idum)
+        rn2 = ran2(idum)
         rn(ipar)  = SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2)
 
     end do
@@ -118,6 +121,7 @@ PROGRAM  isingmodel
  
  
     call vmc(alpha(1),alpha(2),alpha(3),energy,energy_err,der)
+
     DO isgd = 1, nstep2
         cnt = isgd
         call sgd(alpha(1),alpha(2),alpha(3),energy,energy_err,der,cnt,learning_rate)
