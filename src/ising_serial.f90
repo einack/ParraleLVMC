@@ -9,11 +9,11 @@ PROGRAM  isingmodel
     
     Implicit none
 
-    integer :: cnt, cn1, nbin, ipar
-    REAL,dimension(3)    :: rn
-    real    :: rn1, rn2
+    integer :: ipar
+    real(8) ,dimension(3)    :: rn
+    real(8)    :: rn1, rn2
     REAL(8) :: eecum, eecum2, ecum1, ebavg,eebavg,eebavg2 
-    INTEGER :: ecount, ecount2, cntmu, ibavg,iibavg,isgd
+    INTEGER :: ecount, ecount2, ibavg,iibavg,isgd
     real(8) :: sigma,learning_rate
     real(8) :: energy,energy_err
     real(8), dimension(3):: der, alpha
@@ -23,8 +23,12 @@ PROGRAM  isingmodel
     OPEN(unit=10,File='optimized.dat',Status='unknown')
     OPEN(unit=11,File='poptimized.dat',Status='unknown')
 
+    write(*,*) "here here 0"
+    write(*,*) "Debug, idum", a, idum
+    stop 0  ! Code stops here
+
     ! Initialize quantities 
-    CALL initialize(a)
+    CALL initialize()
 
     sigma = 0.5
 	!**************** PARAMETERS INITIALIZATION ********************
@@ -94,8 +98,7 @@ PROGRAM  isingmodel
     call vmc(alpha(1),alpha(2),alpha(3),energy,energy_err,der)
 
     do isgd = 1, nstep2
-        cnt = isgd
-        call sgd(alpha(1),alpha(2),alpha(3),energy,energy_err,der,cnt,learning_rate)
+        call sgd(alpha(1),alpha(2),alpha(3),energy,energy_err,der,learning_rate)
         if(MOD(isgd,10)==0 .OR. isgd==1) THEN
             ecount2 = ecount2 + 1
 

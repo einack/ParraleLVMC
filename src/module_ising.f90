@@ -71,8 +71,8 @@ MODULE functions
     CONTAINS
 
     ! ********************************************************************************************
-    SUBROUTINE initialize(a)
-        REAL(8), DIMENSION(4), INTENT(INOUT) :: a
+    SUBROUTINE initialize()
+        !REAL(8), DIMENSION(4), INTENT(INOUT) :: a
         INTEGER :: iaux, iaux2
         Real(8) :: lEo, rEo  
 
@@ -163,7 +163,7 @@ MODULE functions
         rEo = 0.d0
 
 	    ! Initialize the matrix containing some important physical values 
-        a = 0.d0
+        !a = 0.d0
         wa = 0.d0
 
         ! Initialize the arrays for histogram 
@@ -354,10 +354,8 @@ end subroutine metropolis_hidden
         real(8), intent(out), dimension(3) :: der_var_E
         INTEGER :: iwalk
         REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
-        INTEGER :: ntobemoved,imove,icheck,imoveact
-        INTEGER(KIND=4), DIMENSION(nwalk) :: indmove
+        INTEGER :: imoveact
         REAL(8) :: prn
-        REAL(8), DIMENSION(Lx) :: spinsave
         REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
         REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
         Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
@@ -477,12 +475,11 @@ END SUBROUTINE metropolis_real
 ! This subroutine performs stochastic gradient descend
 ! ****************************************************************************************
 
-  subroutine sgd(beta_r,beta_s,Jrs,energy,energy_err,derivative,count,mu_t)
+  subroutine sgd(beta_r,beta_s,Jrs,energy,energy_err,derivative,mu_t)
    REAL(8), INTENT(inout) :: beta_s,beta_r,Jrs
    real(8), intent(inout) :: energy,energy_err
    real(8), intent(inout), dimension(3) :: derivative 
    !real(8) :: mu_t
-   integer, intent(in) :: count 
    real(8), intent(in) :: mu_t
  
    call vmc(beta_r,beta_s,Jrs,energy,energy_err,derivative)
@@ -531,7 +528,6 @@ END SUBROUTINE metropolis_real
     SUBROUTINE histogram(mes,key)
 
         INTEGER, INTENT(IN)    :: mes
-        REAL(8), DIMENSION(N2) :: sigmaH
         LOGICAL, INTENT(IN)    :: key
         REAL(8)                :: mps    ! magnetization per spin
         Integer :: idx
@@ -622,8 +618,7 @@ END SUBROUTINE metropolis_real
    SUBROUTINE output(hfield)
 
     REAL(8), INTENT(IN) :: hfield
-    REAL(8):: Eave, E2ave, Mave, M2ave, abs_Mave, binderc, b4, b2, be2,be4,sigmaE, sigmaM, avg, bb2, bb4, sigmaB
-    REAL(8):: Etot, varE, sigmaEt, Wavg
+    REAL(8):: Eave, E2ave, Mave, M2ave, sigmaE, sigmaM, avg
 
     avg = (DBLE(nstep2)/DBLE(ncorr))
 
