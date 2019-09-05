@@ -14,9 +14,9 @@ PROGRAM  isingmodel
     REAL(8) :: eecum, eecum2, ecum1, ebavg,eebavg,eebavg2 
     INTEGER :: ecount, ecount2, ibavg,iibavg,isgd
     real(8) :: sigma,learning_rate
-    real(8) :: energy,energy_err
+    real(8) :: energy, energy_err
     real(8), dimension(3):: der, alpha
-    real(8) :: timeinit, timef, time1, time2, time3, time4 
+    real(8) :: timeinit, timef, time1, time3, time4 
 
 
     call cpu_time(timeinit)
@@ -34,9 +34,15 @@ PROGRAM  isingmodel
 	!**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
     do ipar = 1, 3
-        rn1 = ran2(idum)
-        rn2 = ran2(idum)
-        alpha(ipar) = SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2)
+        rn1 = rand(idum)
+        !print*, ""
+	 	!print *, "Rand1  = ", rn1, " Seed: ", idum 
+        rn2 = rand(idum)
+	 	!print *, "Rand2  = ", rn2, " seed: ", idum 
+        !print*, ""
+
+        !stop(": in 1st do loop")
+        !alpha(ipar) = SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2)
     end do
 
 
@@ -62,19 +68,19 @@ PROGRAM  isingmodel
 
     do iwalk = 1, nwalk
         do i = 1, Lx
-            if (ran2(idum) .LT. 0.5) then
+            if (rand(idum) .LT. 0.5) then
                 spin(i,iwalk) = 1.d0
             else
                 spin(i,iwalk) = -1.d0
             end if
 
-            if (ran2(idum) .LT. 0.5) then
+            if (rand(idum) .LT. 0.5) then
                 lspin(i,iwalk) = 1.d0
             else
                 lspin(i,iwalk) = -1.d0
             end if
 
-            if (ran2(idum) .LT. 0.5) then
+            if (rand(idum) .LT. 0.5) then
                 rspin(i,iwalk) = 1.d0
             else
                 rspin(i,iwalk) = -1.d0
@@ -97,9 +103,8 @@ PROGRAM  isingmodel
 
     call cpu_time(time1)
 
-    call cpu_time(time2)
 
-    call vmc(alpha(1),alpha(2),alpha(3),energy,energy_err,der)
+    call vmc(alpha(1),alpha(2),alpha(3), energy, energy_err,der)
 
     call cpu_time(time3)
 
@@ -134,7 +139,7 @@ PROGRAM  isingmodel
     write(*,fmt=771)
 
     write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
-    write(*,fmt=777)'2', 'Duration of vmc', time3-time2 
+    write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
     write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
     write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
 

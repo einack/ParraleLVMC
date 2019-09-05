@@ -6,8 +6,7 @@
 MODULE functions
     Implicit none
 
-    INTEGER, PARAMETER      :: N2 = 100
-    INTEGER, PARAMETER    ::  N1 = 100100, ncorr0=2000
+    INTEGER, PARAMETER    ::  N1 = 100100, N2 = 100, ncorr0=2000  
     REAL(8), PUBLIC       ::  pi=3.14159265358979323846
     INTEGER, save,PUBLIC ::        Lx=30 
     INTEGER, PARAMETER    ::        Ly = 1
@@ -43,7 +42,7 @@ MODULE functions
 
     integer :: seed1                                                                                                  
     integer(kind=4) errcode
-    REAL(8), EXTERNAL :: ran2  
+    REAL(8), EXTERNAL :: rand  
 
     REAL(kind=4) :: aran = 0.e0,bran=1.e0
     REAL(kind=4), DIMENSION(:),ALLOCATABLE :: ranv
@@ -87,7 +86,7 @@ MODULE functions
 
         OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
         READ(17,*)
-        READ(17,*) Jo,hfield,hlong,nstep1,nstep2,nwalk,mu,Lx,seed1 ,beta_r,beta_s,Jrs
+        READ(17,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 ,beta_r,beta_s,Jrs
         CLOSE(17)
 
         isone = 1
@@ -163,7 +162,6 @@ MODULE functions
         rEo = 0.d0
 
 	    ! Initialize the matrix containing some important physical values 
-        !a = 0.d0
         wa = 0.d0
 
         ! Initialize the arrays for histogram 
@@ -177,9 +175,9 @@ MODULE functions
         REAL(8), INTENT(IN) :: beta_r,beta_s,Jrs
         real(8), intent(out) :: energy,energy_err
         real(8), intent(out), dimension(3):: derivative 
-        real(8) :: eebavg,eebavg2,var_E
+        real(8) :: eebavg, eebavg2, var_E
         real(8) :: rn
-        real(8), dimension(3) :: der,der_var_E
+        real(8), dimension(3) :: der, der_var_E
         integer :: iibavg, it
 
         eebavg=0.0
@@ -188,8 +186,12 @@ MODULE functions
         iibavg = 0
        
         DO it = 1, nstep1
-            rn = ran2(idum)
-          
+            rn = rand(idum)
+        
+            write(*,*)    
+            write(*,*) "Here Here, in VMC: idum:  ", idum, " rand 0 gives: ", rn
+            write(*,*)    
+            stop 
             IF ( rn .lt. 0.5) THEN
             ! Move only shadow spins
                 call metropolis_hidden( beta_r, beta_s, Jrs, var_E, der_var_E)
@@ -261,13 +263,17 @@ MODULE functions
 
         ! Move a walker
         DO iwalk = 1, nwalk
-            stobemoved_l = INT((ran2(idum) * Nspins) + 1.d0) 
+
+            stobemoved_l = INT((rand(idum) * Nspins) + 1.d0) 
+
+
             lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
+
             deltaE_l = ediff(lspin(1:Nspins,iwalk),stobemoved_l)
             ds_l     = 2.d0*Jrs*spin(stobemoved_l,iwalk)*lspin(stobemoved_l,iwalk)
             prob_l   = exp(-beta_s*deltaE_l+ds_l)
 
-            rn = ran2(idum)
+            rn = rand(idum)
 
             IF( prob_l .GE. 1.D0 )THEN
                 Eo_l(iwalk) = Eo_l(iwalk) + deltaE_l
@@ -277,13 +283,13 @@ MODULE functions
                 lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
             END IF
 
-            stobemoved_r = INT((ran2(idum) * Nspins) + 1.d0)
+            stobemoved_r = INT((rand(idum) * Nspins) + 1.d0)
             rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
             deltaE_r = ediff(rspin(1:Nspins,iwalk),stobemoved_r)
             ds_r     = 2.d0*Jrs*spin(stobemoved_r,iwalk)*rspin(stobemoved_r,iwalk)
             prob_r   = exp(-beta_s*deltaE_r+ds_r)
 
-            rn = ran2(idum)
+            rn = rand(idum)
             IF(prob_r .GE. 1.D0 )THEN
                 Eo_r(iwalk) = Eo_r(iwalk) + deltaE_r
             ELSE IF(DBLE(rn) .LT. prob_r)THEN
@@ -344,24 +350,24 @@ MODULE functions
 
 end subroutine metropolis_hidden
 
-        ! ********************************************************************************************
-        ! This subroutine performs Metropolis Algorithm on real spins
-        ! ********************************************************************************************
+! ********************************************************************************************
+! This subroutine performs Metropolis Algorithm on real spins
+! ********************************************************************************************
 
-        SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E)
-        REAL(8), INTENT(IN) :: beta_r,Jrs
-        real(8), intent(out) :: var_E
-        real(8), intent(out), dimension(3) :: der_var_E
-        INTEGER :: iwalk
-        REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
-        INTEGER :: imoveact
-        REAL(8) :: prn
-        REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
-        REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
-        Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
+SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E)
+REAL(8), INTENT(IN) :: beta_r,Jrs
+real(8), intent(out) :: var_E
+real(8), intent(out), dimension(3) :: der_var_E
+INTEGER :: iwalk
+REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
+INTEGER :: imoveact
+REAL(8) :: prn
+REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
+REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
+Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
 
-        Real(8) :: der_locE_r , der_locE_rs, der_locE_s
-        Real(8) :: magn1  
+Real(8) :: der_locE_r , der_locE_rs, der_locE_s
+Real(8) :: magn1  
 
     avg_clas=0.d0
     ls_avg_clas=0.d0
@@ -390,7 +396,7 @@ end subroutine metropolis_hidden
     ! Move a walker
     DO iwalk = 1, nwalk
                
-      imoveact = INT((ran2(idum) * Nspins) + 1.d0)
+      imoveact = INT((rand(idum) * Nspins) + 1.d0)
 
       spin(imoveact,iwalk) = -spin(imoveact,iwalk)
 
@@ -399,7 +405,7 @@ end subroutine metropolis_hidden
  
       prob   = exp(-2.d0*beta_r*deltaE+dshadow) 
      
-      prn = ran2(idum) 
+      prn = rand(idum) 
       IF(prob .GE. 1.D0 )THEN
 !        mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
         Eo(iwalk) = Eo(iwalk) + deltaE
