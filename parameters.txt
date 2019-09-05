@@ -1,0 +1,10 @@
+#Jo,hfield,hlong,nstep1, nstep2,nwalk, mu, Lx, seed  beta_r,  beta_s, Jrs
+1.0  0.85   0.0   10000  5  5  0.001  80  1000  0.15674949    1.0342686        0.36807343     
+
+
+# 0.16   1.0   0.4   Initial parameters
+# beta_r  0.69554370641708374     
+# beta_s   1.0373075008392334     
+# Jrs  0.56124204397201538 
+ 
+
