@@ -8,14 +8,14 @@ MODULE functions
 
     INTEGER, PARAMETER    ::  N1 = 100100, N2 = 100, ncorr0=2000  
     REAL(8), PUBLIC       ::  pi=3.14159265358979323846
-    INTEGER, save,PUBLIC ::        Lx=30 
+    INTEGER ::  Lx 
     INTEGER, PARAMETER    ::        Ly = 1
     INTEGER, PUBLIC  ::     nwalk, ncorr 
 
     REAL(8), DIMENSION(N2)     :: ist
     REAL(8), PUBLIC, DIMENSION(N1)     :: mag, mag_new, En, Eo, Es
     REAL(8), PUBLIC, DIMENSION(N1)     :: Eo_r, Eo_l, En_l, En_r
-    REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: spin, spin_new, spin_old
+    REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: spin, spin_new
     REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: lspin, rspin
 
     REAL(8)         :: e, p, q, smin, smax, ds
@@ -45,10 +45,6 @@ MODULE functions
     REAL(8), EXTERNAL :: rand  
 
     REAL(kind=4) :: aran = 0.e0,bran=1.e0
-    REAL(kind=4), DIMENSION(:),ALLOCATABLE :: ranv
-    REAL(kind=4), DIMENSION(:),ALLOCATABLE :: pran,rnd1, rnd2
-    REAL(kind=4), DIMENSION(:),ALLOCATABLE :: ranvtot
-    INTEGER(kind=4), DIMENSION(:), ALLOCATABLE :: nbinv,indmove
     INTEGER(KIND=4) :: isone4, Lxpo4,Lx4
     INTEGER :: isone
 
@@ -64,7 +60,7 @@ MODULE functions
 
     real(8), public, dimension(3) :: lambda, der_lambda
 
-    real(8),public :: beta_r,beta_s,Jrs 
+    real(8), public :: beta_r,beta_s,Jrs 
 
 
     CONTAINS
@@ -96,31 +92,16 @@ MODULE functions
 
         ncorr = nstep2/4
 
-        IF (ALLOCATED(ranv))     DEALLOCATE(ranv)
-        IF (ALLOCATED(pran))     DEALLOCATE(pran)
-        IF (ALLOCATED(rnd1))     DEALLOCATE(rnd1)
-        IF (ALLOCATED(rnd2))     DEALLOCATE(rnd2)
-        IF (ALLOCATED(ranvtot))  DEALLOCATE(ranvtot)
         IF (ALLOCATED(spin))     DEALLOCATE(spin)
-        IF (ALLOCATED(indmove))  DEALLOCATE(indmove)
-        IF (ALLOCATED(spin_old)) DEALLOCATE(spin_old)
-        IF (ALLOCATED(nbinv))    DEALLOCATE(nbinv)
         IF (ALLOCATED(lspin))     DEALLOCATE(lspin)
         IF (ALLOCATED(rspin))     DEALLOCATE(rspin)
+        IF (ALLOCATED(isnear))     DEALLOCATE(isnear)
 
-        ALLOCATE(ranv(2*N1))
-        ALLOCATE(pran(2*N1))
         ALLOCATE(spin(Lx,N1))
-        ALLOCATE(indmove(N1))
-        ALLOCATE(ranvtot(3*Lx*N1))
-        ALLOCATE(spin_old(Lx,N1))
-        ALLOCATE(nbinv(2*N1))
         ALLOCATE(lspin(Lx,N1))
         ALLOCATE(rspin(Lx,N1))
         ALLOCATE(isnear(nnearest,Lx))
 
-        ALLOCATE(rnd1(nstep1))
-        ALLOCATE(rnd2(nstep2))
 
 
 
