@@ -11,7 +11,7 @@ PROGRAM  isingmodel
 
     integer :: ipar
     real(8)    :: rn1, rn2
-    REAL(8) :: eecum, eecum2, ecum1, ebavg,eebavg,eebavg2 
+    REAL(8) :: ebavg,eebavg,eebavg2 
     INTEGER :: ecount, ecount2, ibavg,iibavg,isgd
     real(8) :: sigma,learning_rate
     real(8) :: energy, energy_err
@@ -33,6 +33,7 @@ PROGRAM  isingmodel
     sigma = 0.5
 	!**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
+
     do ipar = 1, 3
         rn1 = rand(idum)
         !print*, ""
@@ -42,13 +43,9 @@ PROGRAM  isingmodel
         !print*, ""
 
         !stop(": in 1st do loop")
-        !alpha(ipar) = SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2)
+        alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2) )
     end do
 
-
-    !alpha(1) = dble(rn(1))
-    !alpha(2) = dble(rn(2))
-    !alpha(3) = dble(rn(3))
 
     ibavg  = 0
     iibavg = 0
@@ -65,6 +62,7 @@ PROGRAM  isingmodel
     print*, 'Jrs',alpha(3)
  
  	!**************   WALKERS INITIALIZATION ************************
+    ! spin, lspin and rspin buffers are populated
 
     do iwalk = 1, nwalk
         do i = 1, Lx
@@ -88,6 +86,7 @@ PROGRAM  isingmodel
 
         end do
 
+        ! Compute Potential energies for each walker
         Eo(iwalk) = epot(spin,iwalk)
         Eo_l(iwalk) = epot(lspin,iwalk)
         Eo_r(iwalk) = epot(rspin,iwalk)
@@ -98,8 +97,6 @@ PROGRAM  isingmodel
     learning_rate = mu
     ecount  = 1
     ecount2 = 0
-    eecum   =  ecum1/(DBLE(Nspins*nwalk))
-    eecum2  = (ecum1/(DBLE(Nspins*nwalk)))**2.d0
 
     call cpu_time(time1)
 

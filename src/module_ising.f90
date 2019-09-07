@@ -20,7 +20,6 @@ MODULE functions
 
     REAL(8)         :: e, p, q, smin, smax, ds
     REAL(8)         :: dt_rel, dt_in, lweight, rweight, wi, et, mu
-    !REAL(8), PUBLIC :: ecum1, ecum2, magn1, ecum3, ecum4,  magn, magn2, magn4, Pa, hfi
 
     INTEGER         :: igg, iwalk, idelta,  nwalk1, imult, idx1, idx2,ispins,i2,i, j, k, usedsize, tau, Nspins
     INTEGER, PUBLIC :: nstep1, nstep2, igen, count, Maxsons, nsample, checkb, checka
@@ -33,10 +32,10 @@ MODULE functions
     LOGICAL,PUBLIC :: key 
 
     REAL(8),  PUBLIC ::  Jo  
-    PUBLIC :: epot,  prob_accept,ediff, metropolis_real, metropolis_hidden
+    PUBLIC :: epot, ediff, metropolis_real, metropolis_hidden
 	 
 
-    PUBLIC :: initialize ,vmc, histogram, output,is_weight,Jperp,sgd
+    PUBLIC :: initialize ,vmc, is_weight, sgd
 
     INTEGER, ALLOCATABLE, DIMENSION(:)  :: SEED
 
@@ -67,7 +66,6 @@ MODULE functions
 
     ! ********************************************************************************************
     SUBROUTINE initialize()
-        !REAL(8), DIMENSION(4), INTENT(INOUT) :: a
         INTEGER :: iaux, iaux2
         Real(8) :: lEo, rEo  
 
@@ -151,6 +149,12 @@ MODULE functions
         count=0
 
     END SUBROUTINE initialize
+!********************************************************************************************
+
+
+!********************************************************************************************
+! This subroutine performs VMC
+!********************************************************************************************
 
     subroutine vmc(beta_r,beta_s,Jrs,energy,energy_err,derivative)
         REAL(8), INTENT(IN) :: beta_r,beta_s,Jrs
@@ -173,6 +177,7 @@ MODULE functions
             write(*,*) "Here Here, in VMC: idum:  ", idum, " rand 0 gives: ", rn
             write(*,*)    
             stop 
+
             IF ( rn .lt. 0.5) THEN
             ! Move only shadow spins
                 call metropolis_hidden( beta_r, beta_s, Jrs, var_E, der_var_E)
@@ -251,7 +256,9 @@ MODULE functions
             lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
 
             deltaE_l = ediff(lspin(1:Nspins,iwalk),stobemoved_l)
+
             ds_l     = 2.d0*Jrs*spin(stobemoved_l,iwalk)*lspin(stobemoved_l,iwalk)
+
             prob_l   = exp(-beta_s*deltaE_l+ds_l)
 
             rn = rand(idum)
@@ -453,10 +460,6 @@ Real(8) :: magn1
 END SUBROUTINE metropolis_real
 
 
-!********************************************************************************************
-! This subroutine performs VMC
-!********************************************************************************************
-
 
 ! ******************************************************************************************
 ! This subroutine performs stochastic gradient descend
@@ -476,6 +479,8 @@ END SUBROUTINE metropolis_real
    Jrs     = Jrs    - mu_t*derivative(3)
    
   end subroutine sgd
+! *********************************************************************************************
+
 
 ! *********************************************************************************************
 ! This subroutine computes the importance sampling weight
@@ -506,192 +511,29 @@ END SUBROUTINE metropolis_real
  
   
   END SUBROUTINE is_weight
-
-  ! ********************************************************************************************
-! This subroutines generates an histogram for the ground state distribution of
-! diffusers
 ! ********************************************************************************************
 
-    SUBROUTINE histogram(mes,key)
-
-        INTEGER, INTENT(IN)    :: mes
-        LOGICAL, INTENT(IN)    :: key
-        REAL(8)                :: mps    ! magnetization per spin
-        Integer :: idx
-
-        ist = 0.d0
-        igg = igen
-        wi  = 1.d0/DBLE(igg)
-
-        DO iwalk = 1, igg
-            mps = mag(iwalk)/DBLE(Nspins)
-            IF( mps>smin .AND. mps<smax ) THEN
-                idx = INT((mps-smin)/ds)+1
-                ist(idx) = ist(idx)+ wi/ds
-            END IF
-        END DO
 
 
-        IF(key .EQV. .TRUE.) THEN
-
-        IF(MOD(mes,nstep2)==0) THEN
-
-        OPEN(UNIT=17,FILE='profile.txt', STATUS='unknown', &
-        ACTION='write')
-
-        DO j = 1, N2
-            WRITE(17,'(2F12.7)') smin+ds*DBLE(j-1)+0.5d0*ds,ist(j)/(DBLE(nstep2)/DBLE(ncorr))
-        END DO
-
-        WRITE(17,*)
-        WRITE(17,*)
-        CLOSE(17)
-
-        END IF
-
-        END IF
-
-    END SUBROUTINE histogram
-
-! ********************************************************************************************
-! This subroutine computes the average magnetization and energy 
-! ********************************************************************************************
-
- !   SUBROUTINE data(iwalk,avg_clas,ls_avg_clas,rs_avg_clas,ls_avg_mcla, &
- !     rs_avg_mcla,ls_avg_eloc,rs_avg_eloc,ecum1,ecum2,ecum3,scum1,scum2,rscum1,rscum2)
-
-  !    integer, intent(in) :: iwalk
-      !real(8) ::  lweight,rweight,lEcl_rs,rEcl_rs, ls_eloc, rs_eloc
-  !    real(8), intent(inout) :: avg_clas, ls_avg_clas, rs_avg_clas
-  !    real(8), intent(inout) :: ls_avg_mcla, rs_avg_mcla, ls_avg_eloc, rs_avg_eloc
-  !    real(8), intent(inout) :: ecum1, ecum2, ecum3, scum1, scum2, rscum1, rscum2
-
-    !***** CUMULATE DATA ****************************************
-!      CALL is_weight(iwalk,lweight,rweight,lEcl_rs,rEcl_rs)
-
-!      ls_eloc = -hfield*lweight   + Eo(iwalk)
- !     rs_eloc = -hfield*rweight   + Eo(iwalk)
-
-
-!         avg_clas  =    avg_clas  + Eo(iwalk)
-!      ls_avg_clas  = ls_avg_clas  + Eo_l(iwalk)
-!      rs_avg_clas  = rs_avg_clas  + Eo_r(iwalk)
-     
-!      ls_avg_mcla  = ls_avg_mcla  + lEcl_rs
-!      rs_avg_mcla  = rs_avg_mcla  + rEcl_rs
-
-!      ls_avg_eloc = ls_avg_eloc  + ls_eloc
-!      rs_avg_eloc = rs_avg_eloc  + rs_eloc
-
-      
-
-!      ecum1 = ecum1 + 0.5d0*(ls_eloc+rs_eloc)            
-                
- !     ecum2 = ecum2 + (Eo(iwalk))*rs_eloc
-  !    ecum3 = ecum3 + (Eo(iwalk))*ls_eloc
-
-!      scum1 = scum1  + (Eo_l(iwalk))*rs_eloc
- !     scum2 = scum2  + (Eo_r(iwalk))*ls_eloc
-
-!     rscum1 = rscum1 + lEcl_rs*rs_eloc
- !    rscum2 = rscum2 + rEcl_rs*ls_eloc
-
-
-!    END SUBROUTINE data
-! ********************************************************************************************
-! This write the physical quantities in a file
-! ********************************************************************************************
-
-   SUBROUTINE output(hfield)
-
-    REAL(8), INTENT(IN) :: hfield
-    REAL(8):: Eave, E2ave, Mave, M2ave, sigmaE, sigmaM, avg
-
-    avg = (DBLE(nstep2)/DBLE(ncorr))
-
-    OPEN(10,file='avge_out.dat',STATUS='unknown', &
-       ACTION='write')
-    OPEN(13,file='fluctuations_nw.dat',STATUS='unknown', &
-      ACTION='write')
-!    OPEN(12,file='mag_out.dat',STATUS='unknown', &
-!      ACTION='write')
-
-    Eave     = a(1)/avg                                ! Average energy per site      
-    E2ave    = a(2)/avg
-    Mave     = a(3)/avg                                ! Average magnetization per site
-    M2ave    = a(4)/avg
-
-!    b2       = b(1)/avg
-!    b4       = b(3)/avg
-!    be2      = b(2)/avg
-!    be4      = b(4)/avg
-!    binderc  = 1.d0 -(b4/b2**2)/3.d0                   ! Computation of the Binder cumulant
-
-!    bb2      = SQRT((be2-(b2**2))/(avg-1.d0))           ! Error in computing b2
-!    bb4      = SQRT((be4-(b4**2))/(avg-1.d0))           ! Error in computing b4
-
-    sigmaE   = SQRT((E2ave-(Eave**2))/(avg-1.d0))      ! Energy error bar
-    sigmaM   = SQRT((M2ave-(Mave**2))/(avg-1.d0))      ! Magnetization error bar 
-!    sigmaB   = SQRT( bb4**2/(9.d0*b2**4) + (4.d0/9.d0)*(b4**2/b2**6)*bb2**2 ) ! Binder cumulant error (propagation)
-
-    !sigmaB   = bb4/ABS(b4) + (2.d0/3.d0)*(bb2/ABS(b2)) ! Binder cumulant error (overestimation)
-
-    ! Energy computed via weighted average
-!    Etot     = wa(1)/wa(2)                                ! Average energy per site      
-!    varE     = wa(3)/(dt*(wa(2))**2)
-!    sigmaEt  = SQRT(varE)             
-!    Wavg     = wa(2)/wa(4)
-
-    WRITE(10,'(F12.3,3F15.8)') hfield/Jo, Eave, sigmaE !,Removed beta
-    WRITE(13,'(F7.2,4F15.8)') hfield/Jo,  Mave, sigmaM ! Removed, beta 
-!    WRITE(12,'(F7.2,4F15.8)') hfield/Jo, Mave, sigmaM, binderc,sigmaB
-
-    CLOSE(10)
-    CLOSE(13)
-!    CLOSE(12)
-
-    END SUBROUTINE output
-!  *******************************************************************************************
-
-! ********************************************************************************************
-! This is the probability to accept a spin flip 
-! ********************************************************************************************
-
-      REAL(8)  FUNCTION prob_accept(hf) RESULT(Y)
-      REAL(8), INTENT(IN) :: hf
-
-      Y = (SINH(hf))/(EXP(hf))
-
-      END FUNCTION prob_accept
-! ********************************************************************************************
-! This is the interaction between physical spins and shadow ones
-! ********************************************************************************************
-
-      REAL(8)  FUNCTION Jperp(hf) RESULT(Y)
-      REAL(8), INTENT(IN) :: hf
-
-      Y = -0.5d0*LOG(TANH(0.5d0*hf))
-
-      END FUNCTION Jperp
 ! ********************************************************************************************
 ! This function computes the potential energy for one copy of the system (walker)
 ! ********************************************************************************************
-      REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
-      
-      REAL(8), DIMENSION(Lx,N1) , INTENT(IN) :: spin
-      INTEGER, INTENT(IN) :: iwalk 
-      INTEGER :: i 
-      REAL(8) ::  E
-       E = 0.d0 
+REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
+REAL(8), DIMENSION(Lx,N1) , INTENT(IN) :: spin
+INTEGER, INTENT(IN) :: iwalk 
+INTEGER :: i 
+REAL(8) ::  E
 
- !No Periodic Boundary Conditions
-         DO i = 1, Lx-1
-         E = E - Jo*(spin(i,iwalk))*(spin(i+1,iwalk)) !- hlong*spin(i,iwalk)
-         END DO
+    E = 0.d0 
 
-         Y = E !- Jo*(spin(Lx,iwalk))*(spin(1,iwalk))  !- hlong*spin(Lx,iwalk)
+    !No Periodic Boundary Conditions
+    DO i = 1, Lx-1
+        E = E - Jo*(spin(i,iwalk))*(spin(i+1,iwalk)) !- hlong*spin(i,iwalk)
+    END DO
 
-      END FUNCTION epot
+    Y = E !- Jo*(spin(Lx,iwalk))*(spin(1,iwalk))  !- hlong*spin(Lx,iwalk)
+
+END FUNCTION epot
 
 ! ********************************************************************************************
 ! This function computes the diiference in potential energy for one copy of the system
