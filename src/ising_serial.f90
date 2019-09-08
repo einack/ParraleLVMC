@@ -11,12 +11,12 @@ PROGRAM  isingmodel
 
     integer :: ipar
     real(8)    :: rn1, rn2
-    REAL(8) :: eecum, eecum2, ecum1, ebavg,eebavg,eebavg2 
+    REAL(8) :: ebavg,eebavg,eebavg2 
     INTEGER :: ecount, ecount2, ibavg,iibavg,isgd
     real(8) :: sigma,learning_rate
-    real(8) :: energy,energy_err
+    real(8) :: energy, energy_err
     real(8), dimension(3):: der, alpha
-    real(8) :: timeinit, timef, time1, time2, time3, time4 
+    real(8) :: timeinit, timef, time1, time3, time4 
 
 
     call cpu_time(timeinit)
@@ -33,17 +33,22 @@ PROGRAM  isingmodel
     sigma = 0.5
 	!**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
+
     do ipar = 1, 3
-        rn1 = ran2(idum)
-        rn2 = ran2(idum)
-        alpha(ipar) = SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2)
+        rn1 = rand()
+        !print*, ""
+	 	!print *, "Rand1  = ", rn1, " Seed: ", idum 
+        rn2 = rand()
+	 	!print *, "Rand2  = ", rn2, " seed: ", idum 
+        !print*, ""
+
+        !stop(": in 1st do loop")
+        alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2) )
     end do
 
-
-    !alpha(1) = dble(rn(1))
-    !alpha(2) = dble(rn(2))
-    !alpha(3) = dble(rn(3))
-
+    !print*, "Rand calls: ", cnt
+    !stop("Stopping after alpha calc")
+    
     ibavg  = 0
     iibavg = 0
     ebavg  = 0.d0
@@ -59,22 +64,23 @@ PROGRAM  isingmodel
     print*, 'Jrs',alpha(3)
  
  	!**************   WALKERS INITIALIZATION ************************
+    ! spin, lspin and rspin buffers are populated
 
     do iwalk = 1, nwalk
         do i = 1, Lx
-            if (ran2(idum) .LT. 0.5) then
+            if ( rand( ) .LT. 0.5) then
                 spin(i,iwalk) = 1.d0
             else
                 spin(i,iwalk) = -1.d0
             end if
 
-            if (ran2(idum) .LT. 0.5) then
+            if ( rand( ) .LT. 0.5) then
                 lspin(i,iwalk) = 1.d0
             else
                 lspin(i,iwalk) = -1.d0
             end if
 
-            if (ran2(idum) .LT. 0.5) then
+            if ( rand( ) .LT. 0.5) then
                 rspin(i,iwalk) = 1.d0
             else
                 rspin(i,iwalk) = -1.d0
@@ -82,6 +88,7 @@ PROGRAM  isingmodel
 
         end do
 
+        ! Compute Potential energies for each walker
         Eo(iwalk) = epot(spin,iwalk)
         Eo_l(iwalk) = epot(lspin,iwalk)
         Eo_r(iwalk) = epot(rspin,iwalk)
@@ -92,24 +99,21 @@ PROGRAM  isingmodel
     learning_rate = mu
     ecount  = 1
     ecount2 = 0
-    eecum   =  ecum1/(DBLE(Nspins*nwalk))
-    eecum2  = (ecum1/(DBLE(Nspins*nwalk)))**2.d0
 
     call cpu_time(time1)
 
-    call cpu_time(time2)
 
-    call vmc(alpha(1),alpha(2),alpha(3),energy,energy_err,der)
+    call vmc(alpha(1),alpha(2),alpha(3), energy, energy_err, der)
 
     call cpu_time(time3)
 
 
     !write(*,*) "here here 0"
-    !write(*,*) "Debug, alph", alpha
-    !stop 0  ! Code stops here
+    !stop ("Stoped after vmc")  ! Code stops here
 
     do isgd = 1, nstep2
-        call sgd(alpha(1),alpha(2),alpha(3),energy,energy_err,der,learning_rate)
+        call sgd(alpha(1),alpha(2),alpha(3), energy, energy_err, der, learning_rate)
+
         if(MOD(isgd,10)==0 .OR. isgd==1) THEN
             ecount2 = ecount2 + 1
 
@@ -130,11 +134,14 @@ PROGRAM  isingmodel
     CLOSE(10)
     CLOSE(11)
     
+    !write(*,*)"Num of times rand is called: ", cnt
+    !write(*,*)
+
     call cpu_time(timef)
     write(*,fmt=771)
 
     write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
-    write(*,fmt=777)'2', 'Duration of vmc', time3-time2 
+    write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
     write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
     write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
 
