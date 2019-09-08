@@ -17,7 +17,7 @@ ising_mpi.x: setup $(BIN_DIR)/ising_mpi.x
 $(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial.o  
 	gfortran  -o $@ $^
 
-$(BIN_DIR)/ising_mpi.x: $(OBJ_DIR)/ising.o $(OBJ_DIR)/functions.o  
+$(BIN_DIR)/ising_mpi.x: $(OBJ_DIR)/ising_par.o $(OBJ_DIR)/functions.o  
 	mpif90  -o $@ $^
 	
 #random_serial: setup $(OBJ_DIR)/random_serial.o 
@@ -35,9 +35,9 @@ ising_serial: setup $(OBJ_DIR)/ising_serial.o
 $(OBJ_DIR)/ising_serial.o: $(SRC_DIR)/ising_serial.f90 $(OBJ_DIR)/functions_serial.o 
 	gfortran $(FFLAGS)  -c $< -o $@ -I$(INCLUDE_DIR)
 
-ising: setup $(OBJ_DIR)/ising.o 
+ising_par: setup $(OBJ_DIR)/ising_par.o 
 
-$(OBJ_DIR)/ising.o: $(SRC_DIR)/ising.f90 $(OBJ_DIR)/functions.o 
+$(OBJ_DIR)/ising_par.o: $(SRC_DIR)/ising_par.f90 $(OBJ_DIR)/functions.o 
 	mpif90 $(FFLAGS)  -c $< -o $@ -I$(INCLUDE_DIR)
 
 functions_serial: setup $(OBJ_DIR)/functions_serial.o
@@ -59,6 +59,10 @@ setup:
 test:
 	./$(BIN_DIR)/ising_serial.x
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
+
+test_mpi:
+	mpirun -np 2 $(BIN_DIR)/ising_mpi.x
+
 
 run_ising_serial.x:
 	 ./$(BIN_DIR)/ising_serial.x

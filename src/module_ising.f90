@@ -4,6 +4,8 @@
  ! ******************************************************************************************* *
 
 MODULE functions
+
+    Use mpi
     Implicit none
 
     INTEGER, PARAMETER    ::  N1 = 100100, N2 = 100, ncorr0=2000  
@@ -60,8 +62,15 @@ MODULE functions
     real(8), public, dimension(3) :: lambda, der_lambda
 
     real(8), public :: beta_r,beta_s,Jrs 
+    real(8), public, dimension(12)  :: params
 
 
+
+
+    ! MPI stuff
+    integer :: ierr
+    integer :: numtasks, rank
+    integer :: loc_size, rest, offset
     CONTAINS
 
     ! ********************************************************************************************
@@ -79,10 +88,38 @@ MODULE functions
 
         ! Parameters initialization
 
-        OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
-        READ(17,*)
-        READ(17,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 , beta_r, beta_s, Jrs
-        CLOSE(17)
+        if (rank == 0) then 
+            OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
+            READ(17,*)
+            !READ(17,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 , beta_r, beta_s, Jrs
+            read(17,*) params(:)
+            CLOSE(17)
+            !Debug:  ! write(*,*) params
+        end if
+
+        call MPI_BCAST( params, 12, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr )
+
+        !if (ierr .ne. 0 ) then
+        !    call MPI_ABORT(MPI_COMM_WORLD, "Error in params BCAST: ", ierr)
+        !end if
+
+        Jo = params(1)
+        hfield = params(2)
+        hlong = params(3)
+        nstep1 = int(params(4))
+        nstep2 = int(params(5))
+        nwalk = int(params(6))
+        mu = params(7)
+        Lx = int(params(8))
+        seed1 = int(params(9))
+        beta_r = params(10)
+        beta_s = params(11)
+        Jrs = params(12)
+
+        !if( rank ==0 ) then
+        !    print *, ierr
+        !end if
+        !stop
 
         isone = 1
         isone4 = 1
@@ -115,15 +152,18 @@ MODULE functions
 
 
         imeasured = 0
-        write(*,*)""
-        PRINT*, "The strength of nn spins interaction is:", Jo
-        PRINT*, "The strength of the transverse field is:", hfield
-        PRINT*, "The strength of the longitudinal field is:", hlong
-        PRINT*, "Number of steps for MCs:", nstep1
-        PRINT*, "Number of SGD steps:", nstep2
-        PRINT*, "Target number of walkers:", nwalk
-        PRINT*, "Length of the spin chain:", Lx
-        write(*,*)""
+
+        if (rank == 0) then 
+            write(*,*)""
+            PRINT*, "The strength of nn spins interaction is:", Jo
+            PRINT*, "The strength of the transverse field is:", hfield
+            PRINT*, "The strength of the longitudinal field is:", hlong
+            PRINT*, "Number of steps for MCs:", nstep1
+            PRINT*, "Number of SGD steps:", nstep2
+            PRINT*, "Target number of walkers:", nwalk
+            PRINT*, "Length of the spin chain:", Lx
+            write(*,*)""
+        end if
 
         Nspins = Lx*Ly
 

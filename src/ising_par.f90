@@ -5,6 +5,7 @@
 PROGRAM  isingmodel
 
     ! Make use of a module
+    Use mpi            
     USE functions
     
     Implicit none
@@ -19,17 +20,23 @@ PROGRAM  isingmodel
     real(8) :: timeinit, timef, time1, time3, time4 
 
 
+    call MPI_INIT(ierr)
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
+    call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
+
     call cpu_time(timeinit)
 
-    OPEN(unit=8,File='energy.dat',Status='unknown')
-    OPEN(unit=9,File='energy_opt.dat',Status='unknown')
-    OPEN(unit=10,File='optimized.dat',Status='unknown')
-    OPEN(unit=11,File='poptimized.dat',Status='unknown')
-
+    if ( rank == 0) then
+        OPEN(unit=8,File='energy.dat',Status='unknown')
+        OPEN(unit=9,File='energy_opt.dat',Status='unknown')
+        OPEN(unit=10,File='optimized.dat',Status='unknown')
+        OPEN(unit=11,File='poptimized.dat',Status='unknown')
+    end if
 
     ! Initialize quantities 
     CALL initialize()
 
+    if (rank == 0 ) then 
     sigma = 0.5
 	!**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
@@ -144,6 +151,10 @@ PROGRAM  isingmodel
     write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
     write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
     write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
+
+    end if
+
+    call MPI_FINALIZE(ierr)
 
 771 format('# No',1x,'Function',1x,'Duration')    
 777 format(1a,1x,a15,1x,f12.6, 'secs')
