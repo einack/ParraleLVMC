@@ -14,21 +14,21 @@ ising_serial.x: setup $(BIN_DIR)/ising_serial.x
 
 ising_mpi.x: setup $(BIN_DIR)/ising_mpi.x 
 
-$(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial.o $(OBJ_DIR)/random_serial.o 
+$(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial.o  
 	gfortran  -o $@ $^
 
-$(BIN_DIR)/ising_mpi.x: $(OBJ_DIR)/ising.o $(OBJ_DIR)/functions.o $(OBJ_DIR)/random.o 
+$(BIN_DIR)/ising_mpi.x: $(OBJ_DIR)/ising.o $(OBJ_DIR)/functions.o  
 	mpif90  -o $@ $^
 	
-random_serial: setup $(OBJ_DIR)/random_serial.o 
+#random_serial: setup $(OBJ_DIR)/random_serial.o 
 
-$(OBJ_DIR)/random_serial.o: $(SRC_DIR)/random.f90  
-	gfortran $(FFLAGS)  -c $< -o $@
+#$(OBJ_DIR)/random_serial.o: $(SRC_DIR)/random.f90  
+#	gfortran $(FFLAGS)  -c $< -o $@
 
-random: setup $(OBJ_DIR)/random.o 
+#random: setup $(OBJ_DIR)/random.o 
 
-$(OBJ_DIR)/random.o: $(SRC_DIR)/random.f90  
-	mpif90 $(FFLAGS)  -c $< -o $@
+#$(OBJ_DIR)/random.o: $(SRC_DIR)/random.f90  
+#	mpif90 $(FFLAGS)  -c $< -o $@
 
 ising_serial: setup $(OBJ_DIR)/ising_serial.o 
 
