@@ -35,10 +35,10 @@ PROGRAM  isingmodel
     pi = 4.d0*atan(1.0d0)
 
     do ipar = 1, 3
-        rn1 = rand(idum)
+        rn1 = rand()
         !print*, ""
 	 	!print *, "Rand1  = ", rn1, " Seed: ", idum 
-        rn2 = rand(idum)
+        rn2 = rand()
 	 	!print *, "Rand2  = ", rn2, " seed: ", idum 
         !print*, ""
 
@@ -46,7 +46,9 @@ PROGRAM  isingmodel
         alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2) )
     end do
 
-
+    !print*, "Rand calls: ", cnt
+    !stop("Stopping after alpha calc")
+    
     ibavg  = 0
     iibavg = 0
     ebavg  = 0.d0
@@ -66,19 +68,19 @@ PROGRAM  isingmodel
 
     do iwalk = 1, nwalk
         do i = 1, Lx
-            if (rand(idum) .LT. 0.5) then
+            if ( rand( ) .LT. 0.5) then
                 spin(i,iwalk) = 1.d0
             else
                 spin(i,iwalk) = -1.d0
             end if
 
-            if (rand(idum) .LT. 0.5) then
+            if ( rand( ) .LT. 0.5) then
                 lspin(i,iwalk) = 1.d0
             else
                 lspin(i,iwalk) = -1.d0
             end if
 
-            if (rand(idum) .LT. 0.5) then
+            if ( rand( ) .LT. 0.5) then
                 rspin(i,iwalk) = 1.d0
             else
                 rspin(i,iwalk) = -1.d0
@@ -101,17 +103,17 @@ PROGRAM  isingmodel
     call cpu_time(time1)
 
 
-    call vmc(alpha(1),alpha(2),alpha(3), energy, energy_err,der)
+    call vmc(alpha(1),alpha(2),alpha(3), energy, energy_err, der)
 
     call cpu_time(time3)
 
 
     !write(*,*) "here here 0"
-    !write(*,*) "Debug, alph", alpha
-    !stop 0  ! Code stops here
+    !stop ("Stoped after vmc")  ! Code stops here
 
     do isgd = 1, nstep2
-        call sgd(alpha(1),alpha(2),alpha(3),energy,energy_err,der,learning_rate)
+        call sgd(alpha(1),alpha(2),alpha(3), energy, energy_err, der, learning_rate)
+
         if(MOD(isgd,10)==0 .OR. isgd==1) THEN
             ecount2 = ecount2 + 1
 
@@ -132,6 +134,9 @@ PROGRAM  isingmodel
     CLOSE(10)
     CLOSE(11)
     
+    !write(*,*)"Num of times rand is called: ", cnt
+    !write(*,*)
+
     call cpu_time(timef)
     write(*,fmt=771)
 
