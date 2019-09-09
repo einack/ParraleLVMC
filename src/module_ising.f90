@@ -15,8 +15,8 @@ MODULE functions
     INTEGER, PUBLIC  ::     nwalk, ncorr 
 
     REAL(8), DIMENSION(N2)     :: ist
-    REAL(8), PUBLIC, DIMENSION(N1)     :: mag, mag_new, En, Eo, Es
-    REAL(8), PUBLIC, DIMENSION(N1)     :: Eo_r, Eo_l, En_l, En_r    ! Modified by metro hidden
+    REAL(8), PUBLIC, DIMENSION(N1)     :: mag, mag_new, En, Es
+    REAL(8), PUBLIC, DIMENSION(:), ALLOCATABLE     :: Eo, Eo_r, Eo_l, En_l, En_r    ! Modified by metro hidden
     REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: spin, spin_new
     REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: lspin, rspin
 
@@ -65,12 +65,11 @@ MODULE functions
     real(8), public, dimension(12)  :: params
 
 
-
-
     ! MPI stuff
     integer :: ierr
     integer :: numtasks, rank
-    integer :: loc_size, low_bound, up_bound, rest, offset
+    integer :: loc_size, low_bound, up_bound, mid_bound, rest, offset
+
     CONTAINS
 
     ! ********************************************************************************************
@@ -133,10 +132,13 @@ MODULE functions
         IF (ALLOCATED(rspin))     DEALLOCATE(rspin)
         IF (ALLOCATED(isnear))     DEALLOCATE(isnear)
 
-        ALLOCATE(spin(Lx,N1))
-        ALLOCATE(lspin(Lx,N1))
-        ALLOCATE(rspin(Lx,N1))
+        ALLOCATE(spin(Lx,nwalk))
+        ALLOCATE(lspin(Lx,nwalk))
+        ALLOCATE(rspin(Lx,nwalk))
         ALLOCATE(isnear(nnearest,Lx))
+        ALLOCATE(Eo(nwalk))
+        ALLOCATE(Eo_l(nwalk))
+        ALLOCATE(Eo_r(nwalk))
 
 
 
@@ -615,7 +617,7 @@ INTEGER              :: is
 !This function computes the potential energy for one copy of the system (walker)
 !********************************************************************************************
 REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
-REAL(8), DIMENSION(Lx,N1) , INTENT(IN) :: spin
+REAL(8), DIMENSION(:,:) , INTENT(IN) :: spin
 INTEGER, INTENT(IN) :: iwalk 
 INTEGER :: i 
 REAL(8) ::  E

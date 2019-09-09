@@ -18,7 +18,7 @@ PROGRAM  isingmodel
     real(8) :: energy, energy_err
     real(8), dimension(3):: der, alpha
     real(8) :: timeinit, timef, time1, time3, time4 
-    real(8), dimension(6) :: randNumbers
+    real(8), dimension(1200)  :: randNumbers
 
     call MPI_INIT(ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
@@ -27,10 +27,10 @@ PROGRAM  isingmodel
     call cpu_time(timeinit)
 
     if ( rank == 0) then
-        OPEN(unit=8,File='energy.dat',Status='unknown')
-        OPEN(unit=9,File='energy_opt.dat',Status='unknown')
-        OPEN(unit=10,File='optimized.dat',Status='unknown')
-        OPEN(unit=11,File='poptimized.dat',Status='unknown')
+        OPEN(unit=8,File='results_par/energy.dat',Status='unknown')
+        OPEN(unit=9,File='results_par/energy_opt.dat',Status='unknown')
+        OPEN(unit=10,File='results_par/optimized.dat',Status='unknown')
+        OPEN(unit=11,File='results_par/poptimized.dat',Status='unknown')
     end if
 
     ! Initialize quantities 
@@ -82,44 +82,66 @@ PROGRAM  isingmodel
     !print*, "Rand calls: ", cnt
     !stop("Stopping after alpha calc")
 
-    if (rank == 0 ) then 
  	!**************   WALKERS INITIALIZATION ************************
     ! spin, lspin and rspin buffers are populated
+    
 
-
-    do iwalk = 1, nwalk
-        do i = 1, Lx
-            if ( rand( ) .LT. 0.5) then
-                spin(i,iwalk) = 1.d0
-            else
-                spin(i,iwalk) = -1.d0
-            end if
-
-            if ( rand( ) .LT. 0.5) then
-                lspin(i,iwalk) = 1.d0
-            else
-                lspin(i,iwalk) = -1.d0
-            end if
-
-            if ( rand( ) .LT. 0.5) then
-                rspin(i,iwalk) = 1.d0
-            else
-                rspin(i,iwalk) = -1.d0
-            end if
-
+    if (rank == 0 ) then 
+        do ipar = 1, Lx * nwalk * 3
+            randNumbers(ipar) = rand() 
         end do
 
-        ! Compute Potential energies for each walker
-        Eo(iwalk) = epot(spin,iwalk)
-        Eo_l(iwalk) = epot(lspin,iwalk)
-        Eo_r(iwalk) = epot(rspin,iwalk)
+        loc_size = 3
 
-    end do
+        do iwalk = 1, nwalk
+            do i = 1, Lx
+
+                low_bound = ( ( iwalk - 1 ) * Lx ) + ( i * loc_size) - (loc_size-1) 
+                mid_bound = low_bound + 1
+                up_bound = low_bound + loc_size - 1 
+
+                if ( randNumbers(low_bound) .LT. 0.5) then
+                    spin(i,iwalk) = 1.d0
+                else
+                    spin(i,iwalk) = -1.d0
+                end if
+
+                if ( randNumbers(mid_bound) .LT. 0.5) then
+                    lspin(i,iwalk) = 1.d0
+                else
+                    lspin(i,iwalk) = -1.d0
+                end if
+
+                if ( randNumbers(up_bound) .LT. 0.5) then
+                    rspin(i,iwalk) = 1.d0
+                else
+                    rspin(i,iwalk) = -1.d0
+                end if
+
+            end do
+
+            ! Compute Potential energies for each walker
+            Eo(iwalk) = epot(spin,iwalk)
+            Eo_l(iwalk) = epot(lspin,iwalk)
+            Eo_r(iwalk) = epot(rspin,iwalk)
+
+        end do
+    end if
+
+    call MPI_BCAST(spin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call MPI_BCAST(lspin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call MPI_BCAST(rspin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call MPI_BCAST(Eo, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call MPI_BCAST(Eo_l, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call MPI_BCAST(Eo_r, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
 
     PRINT*, 'Begin optimization' 
     learning_rate = mu
     ecount  = 1
     ecount2 = 0
+
+    write(*,*) "here here 0"
+    stop ("Stoped after vmc")  ! Code stops here
 
     call cpu_time(time1)
 
@@ -129,9 +151,8 @@ PROGRAM  isingmodel
     call cpu_time(time3)
 
 
-    !write(*,*) "here here 0"
-    !stop ("Stoped after vmc")  ! Code stops here
 
+    if (rank == 0 ) then 
     do isgd = 1, nstep2
         call sgd(alpha(1),alpha(2),alpha(3), energy, energy_err, der, learning_rate)
 
@@ -168,6 +189,13 @@ PROGRAM  isingmodel
 
     end if
 
+    DEALLOCATE(spin)
+    DEALLOCATE(lspin)
+    DEALLOCATE(rspin)
+    DEALLOCATE(isnear)
+    DEALLOCATE(Eo)
+    DEALLOCATE(Eo_l)
+    DEALLOCATE(Eo_r)
     call MPI_FINALIZE(ierr)
 
 771 format('# No',1x,'Function',1x,'Duration')    

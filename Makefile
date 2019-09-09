@@ -12,12 +12,12 @@ FFLAGS= -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall 
 #	gfortran -o a.out random.f90 module_ising.f90 ising.f90
 ising_serial.x: setup $(BIN_DIR)/ising_serial.x 
 
-ising_mpi.x: setup $(BIN_DIR)/ising_mpi.x 
+ising_par.x: setup $(BIN_DIR)/ising_par.x 
 
 $(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial.o  
 	gfortran  -o $@ $^
 
-$(BIN_DIR)/ising_mpi.x: $(OBJ_DIR)/ising_par.o $(OBJ_DIR)/functions.o  
+$(BIN_DIR)/ising_par.x: $(OBJ_DIR)/ising_par.o $(OBJ_DIR)/functions.o  
 	mpif90  -o $@ $^
 	
 #random_serial: setup $(OBJ_DIR)/random_serial.o 
@@ -61,7 +61,7 @@ test_serial:
 	./$(BIN_DIR)/ising_serial.x
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
 
-test_mpi:
+test_par:
 	@mkdir results_par
 	mpirun -np 2 $(BIN_DIR)/ising_mpi.x
 
