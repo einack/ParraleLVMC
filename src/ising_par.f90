@@ -18,7 +18,7 @@ PROGRAM  isingmodel
     real(8) :: energy, energy_err
     real(8), dimension(3):: der, alpha
     real(8) :: timeinit, timef, time1, time3, time4 
-
+    real(8), dimension(6) :: randNumbers
 
     call MPI_INIT(ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
@@ -36,26 +36,35 @@ PROGRAM  isingmodel
     ! Initialize quantities 
     CALL initialize()
 
-    if (rank == 0 ) then 
     sigma = 0.5
 	!**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
 
-    do ipar = 1, 3
-        rn1 = rand()
-        !print*, ""
-	 	!print *, "Rand1  = ", rn1, " Seed: ", idum 
-        rn2 = rand()
-	 	!print *, "Rand2  = ", rn2, " seed: ", idum 
-        !print*, ""
+    loc_size = 2
 
-        !stop(": in 1st do loop")
-        alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2) )
-    end do
+    randNumbers = 0.0
+   
+    ! Root rank pre-computes random numbers and uses it to populate aplha and redistributes 
+    if ( rank == 0 ) then 
+        do ipar = 1, 6
+            randNumbers(ipar) = rand() 
+        end do
 
-    !print*, "Rand calls: ", cnt
-    !stop("Stopping after alpha calc")
-    
+        do ipar = 1, 3
+            low_bound = ipar * loc_size - 1 
+            !print*, ""
+            !print *, "Rand1  = ", rn1, " Seed: ", idum 
+            up_bound = low_bound + loc_size - 1
+            !print *, "Rand2  = ", rn2, " seed: ", idum 
+            !print*, ""
+
+            !stop(": in 1st do loop")
+            alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0 - randNumbers(low_bound) ))*sin(2*pi * randNumbers(up_bound)) )
+        end do
+    end if
+   
+    call MPI_BCAST(alpha, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+
     ibavg  = 0
     iibavg = 0
     ebavg  = 0.d0
@@ -70,8 +79,13 @@ PROGRAM  isingmodel
     print*, 'beta_s',alpha(2)
     print*, 'Jrs',alpha(3)
  
+    !print*, "Rand calls: ", cnt
+    !stop("Stopping after alpha calc")
+
+    if (rank == 0 ) then 
  	!**************   WALKERS INITIALIZATION ************************
     ! spin, lspin and rspin buffers are populated
+
 
     do iwalk = 1, nwalk
         do i = 1, Lx

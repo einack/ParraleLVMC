@@ -70,7 +70,7 @@ MODULE functions
     ! MPI stuff
     integer :: ierr
     integer :: numtasks, rank
-    integer :: loc_size, rest, offset
+    integer :: loc_size, low_bound, up_bound, rest, offset
     CONTAINS
 
     ! ********************************************************************************************
