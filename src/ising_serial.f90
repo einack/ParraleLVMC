@@ -21,10 +21,10 @@ PROGRAM  isingmodel
 
     call cpu_time(timeinit)
 
-    OPEN(unit=8,File='energy.dat',Status='unknown')
-    OPEN(unit=9,File='energy_opt.dat',Status='unknown')
-    OPEN(unit=10,File='optimized.dat',Status='unknown')
-    OPEN(unit=11,File='poptimized.dat',Status='unknown')
+    OPEN(unit=8,File='results_serial/energy.dat',Status='unknown')
+    OPEN(unit=9,File='results_serial/energy_opt.dat',Status='unknown')
+    OPEN(unit=10,File='results_serial/optimized.dat',Status='unknown')
+    OPEN(unit=11,File='results_serial/poptimized.dat',Status='unknown')
 
 
     ! Initialize quantities 

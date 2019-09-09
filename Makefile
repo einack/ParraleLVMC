@@ -42,7 +42,7 @@ $(OBJ_DIR)/ising_par.o: $(SRC_DIR)/ising_par.f90 $(OBJ_DIR)/functions.o
 
 functions_serial: setup $(OBJ_DIR)/functions_serial.o
 
-$(OBJ_DIR)/functions_serial.o: $(SRC_DIR)/module_ising.f90
+$(OBJ_DIR)/functions_serial.o: $(SRC_DIR)/module_ising_serial.f90
 	gfortran $(FFLAGS) -J $(INCLUDE_DIR) -c $^ -o $@
 
 
@@ -56,11 +56,13 @@ setup:
 	@mkdir -p $(BIN_DIR)
 	#@mkdir -p $(INCLUDE_DIR)
 
-test:
+test_serial:
+	@mkdir results_serial
 	./$(BIN_DIR)/ising_serial.x
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
 
 test_mpi:
+	@mkdir results_par
 	mpirun -np 2 $(BIN_DIR)/ising_mpi.x
 
 
@@ -73,3 +75,4 @@ clean:
 cleanall:
 	rm -f *.o *.out *.mod *.dat fort*
 	rm -f -r $(OBJ_DIR) $(BIN_DIR)
+	rm -rf results_*
