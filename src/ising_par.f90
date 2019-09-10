@@ -19,7 +19,8 @@ PROGRAM  isingmodel
     real(8), dimension(3):: der, alpha
     real(8) :: timeinit, timef, time1, time3, time4 
     real(8), dimension(1200)  :: randNumbers
-
+    integer :: N
+        
     call MPI_INIT(ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
@@ -27,10 +28,12 @@ PROGRAM  isingmodel
     call cpu_time(timeinit)
 
     if ( rank == 0) then
+        OPEN(unit=7,File='results_par/spins_par.dat',Status='unknown')
         OPEN(unit=8,File='results_par/energy.dat',Status='unknown')
         OPEN(unit=9,File='results_par/energy_opt.dat',Status='unknown')
         OPEN(unit=10,File='results_par/optimized.dat',Status='unknown')
         OPEN(unit=11,File='results_par/poptimized.dat',Status='unknown')
+        OPEN(unit=12,File='results_par/random.dat',Status='unknown')
     end if
 
     ! Initialize quantities 
@@ -61,9 +64,11 @@ PROGRAM  isingmodel
             !stop(": in 1st do loop")
             alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0 - randNumbers(low_bound) ))*sin(2*pi * randNumbers(up_bound)) )
         end do
+
     end if
    
     call MPI_BCAST(alpha, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of alpha')
 
     ibavg  = 0
     iibavg = 0
@@ -87,16 +92,18 @@ PROGRAM  isingmodel
     
 
     if (rank == 0 ) then 
-        do ipar = 1, Lx * nwalk * 3
+        N = Lx * nwalk * 3
+        do ipar = 1, N 
             randNumbers(ipar) = rand() 
         end do
 
         loc_size = 3
 
+        Write(7,*) "Total Num of Rand calls: ", cnt
         do iwalk = 1, nwalk
             do i = 1, Lx
 
-                low_bound = ( ( iwalk - 1 ) * Lx ) + ( i * loc_size) - (loc_size-1) 
+                low_bound = ( ( iwalk - 1 ) * loc_size  * Lx ) + ( i * loc_size) - (loc_size-1) 
                 mid_bound = low_bound + 1
                 up_bound = low_bound + loc_size - 1 
 
@@ -128,6 +135,12 @@ PROGRAM  isingmodel
         end do
     end if
 
+    if (rank == 0) then
+        do i=1, 10
+            write(7,'(5(f4.1,1X))') spin(i,:)    
+        end do
+    end if
+
     call MPI_BCAST(spin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
     call MPI_BCAST(lspin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
     call MPI_BCAST(rspin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
@@ -135,13 +148,16 @@ PROGRAM  isingmodel
     call MPI_BCAST(Eo_l, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
     call MPI_BCAST(Eo_r, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
 
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+    go to 99
     PRINT*, 'Begin optimization' 
     learning_rate = mu
     ecount  = 1
     ecount2 = 0
 
     write(*,*) "here here 0"
-    stop ("Stoped after vmc")  ! Code stops here
+    !stop ("Stoped after vmc")  ! Code stops here
 
     call cpu_time(time1)
 
@@ -152,7 +168,6 @@ PROGRAM  isingmodel
 
 
 
-    if (rank == 0 ) then 
     do isgd = 1, nstep2
         call sgd(alpha(1),alpha(2),alpha(3), energy, energy_err, der, learning_rate)
 
@@ -187,7 +202,6 @@ PROGRAM  isingmodel
     write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
     write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
 
-    end if
 
     DEALLOCATE(spin)
     DEALLOCATE(lspin)
@@ -196,7 +210,8 @@ PROGRAM  isingmodel
     DEALLOCATE(Eo)
     DEALLOCATE(Eo_l)
     DEALLOCATE(Eo_r)
-    call MPI_FINALIZE(ierr)
+
+99    call MPI_FINALIZE(ierr)
 
 771 format('# No',1x,'Function',1x,'Duration')    
 777 format(1a,1x,a15,1x,f12.6, 'secs')
