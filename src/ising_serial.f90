@@ -5,7 +5,7 @@
 PROGRAM  isingmodel
 
     ! Make use of a module
-    USE functions
+    USE functions_serial
     
     Implicit none
 
@@ -21,6 +21,7 @@ PROGRAM  isingmodel
 
     call cpu_time(timeinit)
 
+    OPEN(unit=7,File='results_serial/spins.dat',Status='unknown')
     OPEN(unit=8,File='results_serial/energy.dat',Status='unknown')
     OPEN(unit=9,File='results_serial/energy_opt.dat',Status='unknown')
     OPEN(unit=10,File='results_serial/optimized.dat',Status='unknown')
@@ -46,8 +47,6 @@ PROGRAM  isingmodel
         alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0-rn1))*sin(2*pi*rn2) )
     end do
 
-    !print*, "Rand calls: ", cnt
-    !stop("Stopping after alpha calc")
     
     ibavg  = 0
     iibavg = 0
@@ -65,6 +64,8 @@ PROGRAM  isingmodel
  
  	!**************   WALKERS INITIALIZATION ************************
     ! spin, lspin and rspin buffers are populated
+
+    Write(7,*) "Total Num of Rand calls: ", cnt
 
     do iwalk = 1, nwalk
         do i = 1, Lx
@@ -94,6 +95,12 @@ PROGRAM  isingmodel
         Eo_r(iwalk) = epot(rspin,iwalk)
 
     end do
+
+
+    do i=1, 10
+        write(7,'(5(f4.1,1X))') spin(i,:)    
+    end do
+
 
     PRINT*, 'Begin optimization' 
     learning_rate = mu
@@ -130,14 +137,22 @@ PROGRAM  isingmodel
   
     print*, "End optimization"
 
+    write(7,*)"Num of times rand is called: ", cnt
+
+    CLOSE(7)  
     CLOSE(8)  
     CLOSE(10)
     CLOSE(11)
     
-    !write(*,*)"Num of times rand is called: ", cnt
     !write(*,*)
 
     call cpu_time(timef)
+
+    deallocate(spin)
+    deallocate(lspin)
+    deallocate(rspin)
+    deallocate(isnear)
+
     write(*,fmt=771)
 
     write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
@@ -145,6 +160,7 @@ PROGRAM  isingmodel
     write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
     write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
 
+770 format (5(f4.1,1X))
 771 format('# No',1x,'Function',1x,'Duration')    
 777 format(1a,1x,a15,1x,f12.6, 'secs')
 END PROGRAM isingmodel

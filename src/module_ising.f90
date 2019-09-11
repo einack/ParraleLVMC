@@ -73,6 +73,8 @@ MODULE functions
 
     CONTAINS
 
+    ! ********************************************************************************************
+    ! ********************************************************************************************
     subroutine utils_mpi(ierror, rank, msg )
     implicit none
     integer :: ierror, rank
@@ -86,6 +88,7 @@ MODULE functions
         end if
 
         end subroutine utils_mpi
+    ! ********************************************************************************************
     ! ********************************************************************************************
 
 
@@ -287,7 +290,18 @@ MODULE functions
         eebavg2=0.0
         der = 0.0
         iibavg = 0
-       
+      
+        !if (root ==0 ) then
+    
+         !   do j=1, nstep1
+          !      do i=1, nwalk * 4
+           !         rn1 = rand()
+            !        randbuff(i,j) = rand()
+             !   end do
+            !end do
+
+        !end if
+
         DO it = 1, nstep1
             rn = rand()
         
