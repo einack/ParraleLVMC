@@ -69,8 +69,26 @@ MODULE functions
     integer :: ierr
     integer :: numtasks, rank
     integer :: loc_size, low_bound, up_bound, mid_bound, rest, offset
+    character(len = 15) :: msg
 
     CONTAINS
+
+    subroutine utils_mpi(ierror, rank, msg )
+    implicit none
+    integer :: ierror, rank
+    character(len=*), intent(in) :: msg 
+
+        if ( ierror .ne. 0 ) then
+            write(*, '(A11,1x,I2,1X,A7,1X,I2,1X,A15)') "Error: code", ierror, "by rank", rank, "from", msg 
+            call MPI_Finalize(ierror)
+        else
+            write(*, '(A12,1x,I2,1X,A7,1X,I2,1X,A15)') "Success code", ierror, "by rank", rank, "from", msg 
+        end if
+
+        end subroutine utils_mpi
+    ! ********************************************************************************************
+
+
 
     ! ********************************************************************************************
     SUBROUTINE initialize()
@@ -245,7 +263,7 @@ MODULE functions
     if(iy.lt.1)iy=iy+IMM1
 
     rand=min(AM*iy,RNMX)
-    !write(*,*)"seed : ", seed_rnd, "Random No: ", rand
+    write(12,*)"Seed", seed_rnd, "Random No: ", rand
 
     return
     end function

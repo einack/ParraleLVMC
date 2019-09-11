@@ -57,13 +57,13 @@ setup:
 	#@mkdir -p $(INCLUDE_DIR)
 
 test_serial:
-	@mkdir results_serial
+	@mkdir -p results_serial
 	./$(BIN_DIR)/ising_serial.x
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
 
 test_par:
-	@mkdir results_par
-	mpirun -np 2 $(BIN_DIR)/ising_mpi.x
+	@mkdir -p results_par
+	mpirun -np 2 $(BIN_DIR)/ising_par.x
 
 
 run_ising_serial.x:
