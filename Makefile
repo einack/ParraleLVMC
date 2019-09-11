@@ -12,12 +12,12 @@ FFLAGS= -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall 
 #	gfortran -o a.out random.f90 module_ising.f90 ising.f90
 ising_serial.x: setup $(BIN_DIR)/ising_serial.x 
 
-ising_mpi.x: setup $(BIN_DIR)/ising_mpi.x 
+ising_par.x: setup $(BIN_DIR)/ising_par.x 
 
 $(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial.o  
 	gfortran  -o $@ $^
 
-$(BIN_DIR)/ising_mpi.x: $(OBJ_DIR)/ising.o $(OBJ_DIR)/functions.o  
+$(BIN_DIR)/ising_par.x: $(OBJ_DIR)/ising_par.o $(OBJ_DIR)/functions.o  
 	mpif90  -o $@ $^
 	
 #random_serial: setup $(OBJ_DIR)/random_serial.o 
@@ -35,14 +35,14 @@ ising_serial: setup $(OBJ_DIR)/ising_serial.o
 $(OBJ_DIR)/ising_serial.o: $(SRC_DIR)/ising_serial.f90 $(OBJ_DIR)/functions_serial.o 
 	gfortran $(FFLAGS)  -c $< -o $@ -I$(INCLUDE_DIR)
 
-ising: setup $(OBJ_DIR)/ising.o 
+ising_par: setup $(OBJ_DIR)/ising_par.o 
 
-$(OBJ_DIR)/ising.o: $(SRC_DIR)/ising.f90 $(OBJ_DIR)/functions.o 
+$(OBJ_DIR)/ising_par.o: $(SRC_DIR)/ising_par.f90 $(OBJ_DIR)/functions.o 
 	mpif90 $(FFLAGS)  -c $< -o $@ -I$(INCLUDE_DIR)
 
 functions_serial: setup $(OBJ_DIR)/functions_serial.o
 
-$(OBJ_DIR)/functions_serial.o: $(SRC_DIR)/module_ising.f90
+$(OBJ_DIR)/functions_serial.o: $(SRC_DIR)/module_ising_serial.f90
 	gfortran $(FFLAGS) -J $(INCLUDE_DIR) -c $^ -o $@
 
 
@@ -56,9 +56,15 @@ setup:
 	@mkdir -p $(BIN_DIR)
 	#@mkdir -p $(INCLUDE_DIR)
 
-test:
+test_serial:
+	@mkdir results_serial
 	./$(BIN_DIR)/ising_serial.x
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
+
+test_par:
+	@mkdir results_par
+	mpirun -np 2 $(BIN_DIR)/ising_mpi.x
+
 
 run_ising_serial.x:
 	 ./$(BIN_DIR)/ising_serial.x
@@ -69,3 +75,4 @@ clean:
 cleanall:
 	rm -f *.o *.out *.mod *.dat fort*
 	rm -f -r $(OBJ_DIR) $(BIN_DIR)
+	rm -rf results_*

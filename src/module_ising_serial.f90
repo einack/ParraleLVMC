@@ -3,9 +3,7 @@
  ! washboard potential with few wells
  ! ******************************************************************************************* *
 
-MODULE functions
-
-    Use mpi
+MODULE functions_serial
     Implicit none
 
     INTEGER, PARAMETER    ::  N1 = 100100, N2 = 100, ncorr0=2000  
@@ -15,8 +13,8 @@ MODULE functions
     INTEGER, PUBLIC  ::     nwalk, ncorr 
 
     REAL(8), DIMENSION(N2)     :: ist
-    REAL(8), PUBLIC, DIMENSION(N1)     :: mag, mag_new, En, Es
-    REAL(8), PUBLIC, DIMENSION(:), ALLOCATABLE     :: Eo, Eo_r, Eo_l, En_l, En_r    ! Modified by metro hidden
+    REAL(8), PUBLIC, DIMENSION(N1)     :: mag, mag_new, En, Eo, Es
+    REAL(8), PUBLIC, DIMENSION(N1)     :: Eo_r, Eo_l, En_l, En_r    ! Modified by metro hidden
     REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: spin, spin_new
     REAL(8), PUBLIC, DIMENSION(:,:), ALLOCATABLE  :: lspin, rspin
 
@@ -62,13 +60,7 @@ MODULE functions
     real(8), public, dimension(3) :: lambda, der_lambda
 
     real(8), public :: beta_r,beta_s,Jrs 
-    real(8), public, dimension(12)  :: params
 
-
-    ! MPI stuff
-    integer :: ierr
-    integer :: numtasks, rank
-    integer :: loc_size, low_bound, up_bound, mid_bound, rest, offset
 
     CONTAINS
 
@@ -87,38 +79,10 @@ MODULE functions
 
         ! Parameters initialization
 
-        if (rank == 0) then 
-            OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
-            READ(17,*)
-            !READ(17,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 , beta_r, beta_s, Jrs
-            read(17,*) params(:)
-            CLOSE(17)
-            !Debug:  ! write(*,*) params
-        end if
-
-        call MPI_BCAST( params, 12, MPI_DOUBLE, 0, MPI_COMM_WORLD, ierr )
-
-        !if (ierr .ne. 0 ) then
-        !    call MPI_ABORT(MPI_COMM_WORLD, "Error in params BCAST: ", ierr)
-        !end if
-
-        Jo = params(1)
-        hfield = params(2)
-        hlong = params(3)
-        nstep1 = int(params(4))
-        nstep2 = int(params(5))
-        nwalk = int(params(6))
-        mu = params(7)
-        Lx = int(params(8))
-        seed1 = int(params(9))
-        beta_r = params(10)
-        beta_s = params(11)
-        Jrs = params(12)
-
-        !if( rank ==0 ) then
-        !    print *, ierr
-        !end if
-        !stop
+        OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
+        READ(17,*)
+        READ(17,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 , beta_r, beta_s, Jrs
+        CLOSE(17)
 
         isone = 1
         isone4 = 1
@@ -132,13 +96,10 @@ MODULE functions
         IF (ALLOCATED(rspin))     DEALLOCATE(rspin)
         IF (ALLOCATED(isnear))     DEALLOCATE(isnear)
 
-        ALLOCATE(spin(Lx,nwalk))
-        ALLOCATE(lspin(Lx,nwalk))
-        ALLOCATE(rspin(Lx,nwalk))
+        ALLOCATE(spin(Lx,N1))
+        ALLOCATE(lspin(Lx,N1))
+        ALLOCATE(rspin(Lx,N1))
         ALLOCATE(isnear(nnearest,Lx))
-        ALLOCATE(Eo(nwalk))
-        ALLOCATE(Eo_l(nwalk))
-        ALLOCATE(Eo_r(nwalk))
 
 
 
@@ -154,18 +115,15 @@ MODULE functions
 
 
         imeasured = 0
-
-        if (rank == 0) then 
-            write(*,*)""
-            PRINT*, "The strength of nn spins interaction is:", Jo
-            PRINT*, "The strength of the transverse field is:", hfield
-            PRINT*, "The strength of the longitudinal field is:", hlong
-            PRINT*, "Number of steps for MCs:", nstep1
-            PRINT*, "Number of SGD steps:", nstep2
-            PRINT*, "Target number of walkers:", nwalk
-            PRINT*, "Length of the spin chain:", Lx
-            write(*,*)""
-        end if
+        write(*,*)""
+        PRINT*, "The strength of nn spins interaction is:", Jo
+        PRINT*, "The strength of the transverse field is:", hfield
+        PRINT*, "The strength of the longitudinal field is:", hlong
+        PRINT*, "Number of steps for MCs:", nstep1
+        PRINT*, "Number of SGD steps:", nstep2
+        PRINT*, "Target number of walkers:", nwalk
+        PRINT*, "Length of the spin chain:", Lx
+        write(*,*)""
 
         Nspins = Lx*Ly
 
@@ -617,7 +575,7 @@ INTEGER              :: is
 !This function computes the potential energy for one copy of the system (walker)
 !********************************************************************************************
 REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
-REAL(8), DIMENSION(:,:) , INTENT(IN) :: spin
+REAL(8), DIMENSION(Lx,N1) , INTENT(IN) :: spin
 INTEGER, INTENT(IN) :: iwalk 
 INTEGER :: i 
 REAL(8) ::  E
@@ -663,7 +621,7 @@ INTEGER, INTENT(IN) :: imoveact
 END FUNCTION ediff
 
 ! ********************************************************************************************
-END MODULE functions
+END MODULE functions_serial
 
 
 
