@@ -96,9 +96,9 @@ MODULE functions_serial
         IF (ALLOCATED(rspin))     DEALLOCATE(rspin)
         IF (ALLOCATED(isnear))     DEALLOCATE(isnear)
 
-        ALLOCATE(spin(Lx,N1))
-        ALLOCATE(lspin(Lx,N1))
-        ALLOCATE(rspin(Lx,N1))
+        ALLOCATE(spin(Lx,nwalk))
+        ALLOCATE(lspin(Lx,nwalk))
+        ALLOCATE(rspin(Lx,nwalk))
         ALLOCATE(isnear(nnearest,Lx))
 
 
@@ -152,8 +152,11 @@ MODULE functions_serial
 
         count=0
 
+        open(unit=12,file='results_serial/random.dat', status='unknown')
+
     END SUBROUTINE initialize
 !********************************************************************************************
+
 
 !!CC{{{  Functions
     FUNCTION rand()
@@ -205,6 +208,7 @@ MODULE functions_serial
     rand=min(AM*iy,RNMX)
     !write(*,*)"seed : ", seed_rnd, "Random No: ", rand
 
+    write(12,*)"Seed", seed_rnd, "Random No: ", rand
     return
     end function
 !C  (C) Copr. 1986-92 Numerical Recipes Software (9`3j32150.

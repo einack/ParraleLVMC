@@ -106,7 +106,7 @@ PROGRAM  isingmodel
                 low_bound = ( ( iwalk - 1 ) * loc_size  * Lx ) + ( i * loc_size) - (loc_size-1) 
                 mid_bound = low_bound + 1
                 up_bound = low_bound + loc_size - 1 
-
+                
                 if ( randNumbers(low_bound) .LT. 0.5) then
                     spin(i,iwalk) = 1.d0
                 else
@@ -135,18 +135,29 @@ PROGRAM  isingmodel
         end do
     end if
 
-    if (rank == 0) then
+    if ( rank == 0 ) then
         do i=1, 10
             write(7,'(5(f4.1,1X))') spin(i,:)    
         end do
     end if
 
     call MPI_BCAST(spin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of spin')
+
     call MPI_BCAST(lspin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of lspin')
+
     call MPI_BCAST(rspin, Lx*nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of rpsin')
+
     call MPI_BCAST(Eo, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of Eo')
+
     call MPI_BCAST(Eo_l, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of Eo_l')
+
     call MPI_BCAST(Eo_r, nwalk, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
+    call utils_mpi(ierr, rank, 'Bcast of Eo_r')
 
     call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
