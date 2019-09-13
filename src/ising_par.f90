@@ -18,8 +18,7 @@ PROGRAM  isingmodel
     real(8) :: energy, energy_err
     real(8), dimension(3):: der, alpha
     real(8) :: timeinit, timef, time1, time3, time4 
-    real(8), dimension(1200)  :: randNumbers
-    integer :: N
+    integer :: buff_size
         
     call MPI_INIT(ierr)
     call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
@@ -43,14 +42,20 @@ PROGRAM  isingmodel
 	!**************** PARAMETERS INITIALIZATION ********************
     pi = 4.d0*atan(1.0d0)
 
-    loc_size = 2
-
-    randNumbers = 0.0
    
     ! Root rank pre-computes random numbers and uses it to populate aplha and redistributes 
     if ( rank == 0 ) then 
+
+        ! Allocate buffer to contain predetermined random numbers
+
+        buff_size = Lx * nwalk * 3
+        allocate(randnumbers_1d( buff_size ))
+        randnumbers_1d = 0.0
+        loc_size = 2
+
+        !Generate  and use first 6 random numbers
         do ipar = 1, 6
-            randNumbers(ipar) = rand() 
+            randnumbers_1d(ipar) = rand() 
         end do
 
         do ipar = 1, 3
@@ -62,9 +67,10 @@ PROGRAM  isingmodel
             !print*, ""
 
             !stop(": in 1st do loop")
-            alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0 - randNumbers(low_bound) ))*sin(2*pi * randNumbers(up_bound)) )
+            alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0 - randnumbers_1d(low_bound) ))*sin(2*pi * randnumbers_1d(up_bound)) )
         end do
 
+        deallocate(randnumbers_1d)
     end if
    
     call MPI_BCAST(alpha, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
@@ -92,34 +98,33 @@ PROGRAM  isingmodel
     
 
     if (rank == 0 ) then 
-        N = Lx * nwalk * 3
-        do ipar = 1, N 
-            randNumbers(ipar) = rand() 
+        do ipar = 1, buff_size 
+            randnumbers_1d(ipar) = rand() 
         end do
 
-        loc_size = 3
+        loc_size_spins = 3
 
         Write(7,*) "Total Num of Rand calls: ", cnt
         do iwalk = 1, nwalk
             do i = 1, Lx
 
-                low_bound = ( ( iwalk - 1 ) * loc_size  * Lx ) + ( i * loc_size) - (loc_size-1) 
+                low_bound = ( ( iwalk - 1 ) * loc_size_spins  * Lx ) + ( i * loc_size_spins) - (loc_size_spins - 1) 
                 mid_bound = low_bound + 1
                 up_bound = low_bound + loc_size - 1 
                 
-                if ( randNumbers(low_bound) .LT. 0.5) then
+                if ( randnumbers_1d(low_bound) .LT. 0.5) then
                     spin(i,iwalk) = 1.d0
                 else
                     spin(i,iwalk) = -1.d0
                 end if
 
-                if ( randNumbers(mid_bound) .LT. 0.5) then
+                if ( randnumbers_1d(mid_bound) .LT. 0.5) then
                     lspin(i,iwalk) = 1.d0
                 else
                     lspin(i,iwalk) = -1.d0
                 end if
 
-                if ( randNumbers(up_bound) .LT. 0.5) then
+                if ( randnumbers_1d(up_bound) .LT. 0.5) then
                     rspin(i,iwalk) = 1.d0
                 else
                     rspin(i,iwalk) = -1.d0

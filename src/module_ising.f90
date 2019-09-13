@@ -68,8 +68,12 @@ MODULE functions
     ! MPI stuff
     integer :: ierr
     integer :: numtasks, rank
-    integer :: loc_size, low_bound, up_bound, mid_bound, rest, offset
+    integer :: loc_size, loc_size_spins, loc_size_vmc
+    integer :: low_bound, up_bound, mid_bound, rest, offset
     character(len = 15) :: msg
+
+    real(8), dimension(:), allocatable :: randnumbers_1d 
+    real(8), dimension(:,:), allocatable :: randnumbers_2d 
 
     CONTAINS
 
@@ -282,26 +286,33 @@ MODULE functions
         real(8), intent(out) :: energy, energy_err
         real(8), intent(out), dimension(3):: derivative 
         real(8) :: eebavg, eebavg2, var_E
-        real(8) :: rn
+        real(8) :: rn, lead_num
         real(8), dimension(3) :: der, der_var_E
-        integer :: iibavg, it
-
+        integer :: iibavg, it, buff_size 
+    
         eebavg=0.0
         eebavg2=0.0
         der = 0.0
         iibavg = 0
-      
-        !if (root ==0 ) then
-    
-         !   do j=1, nstep1
-          !      do i=1, nwalk * 4
-           !         rn1 = rand()
-            !        randbuff(i,j) = rand()
-             !   end do
-            !end do
 
-        !end if
+        ! Root rank precomputes ( nstep1 * nwalk * [4 or 2] ) random numbers to distribute.       
 
+        if ( rank == 0 ) then 
+            buff_size = (nwalk * 4) + 1
+            allocate(randnumbers_2d( buff_size, nstep1))
+
+            do j=1 , nstep1
+                cnt = 0
+                do i=1, buff_size
+                    cnt = cnt + 1
+                    randnumbers_2d(i,j) = rand()
+                    lead_num = randnumbers_2d (1,j)
+                    if ( lead_num .ge. 0.5 .and. cnt == (nwalk *2) + 1  ) exit
+                end do
+            end do
+        end if
+
+        
         DO it = 1, nstep1
             rn = rand()
         
@@ -331,6 +342,8 @@ MODULE functions
         derivative = der/dble(iibavg)
 
         print*, 'energy', energy, '+/-',energy_err 
+
+        if (rank == 0) deallocate(randnumbers_2d)
     end subroutine vmc 
 
 
