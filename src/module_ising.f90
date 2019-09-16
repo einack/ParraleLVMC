@@ -66,15 +66,15 @@ MODULE functions
 
 
     ! MPI stuff
-    integer :: ierr
-    integer :: nprocs, rank
-    integer :: loc_size, loc_size_spins, loc_size_vmc
+    integer :: nprocs, rank, ierr
+    integer :: loc_size, loc_size_spins, loc_size_vmc, lw_bound_vmc
     integer :: low_bound, up_bound, mid_bound, rest, offset
     character(len = 15) :: msg
 
     real(8), dimension(:), allocatable :: randnumbers_1d 
     real(8), dimension(:,:), allocatable :: randnumbers_2d 
-   
+    integer, dimension(:), allocatable :: displ
+
     !#ifdef DEBUG
         logical, parameter :: debug = .true.
     !#else
@@ -329,11 +329,38 @@ MODULE functions
 
         loc_size_vmc = int( nstep1 / nprocs )
         rest = mod(nstep1, nprocs)
-        
-        if (rest /= 0 .and. rank >= nprocs - rest ) loc_size_vmc = loc_size_vmc + 1
+        offset = 0
+        lw_bound_vmc = rank * loc_size_vmc + 1 
+
+        ! Distributionn of extra pay load from bottom
+        if (rest /= 0 .and. rank >= nprocs - rest ) then 
+            offset = nprocs - rest
+            loc_size_vmc = loc_size_vmc + 1
+            lw_bound_vmc = rank * loc_size_vmc + 1 - offset
+        end if
+
+        ! computing of local sizes of ranks buffers by root for distrbution
+        allocate(displ(nprocs) )
+        if (rank == 0 )then
+            offset = nprocs - rest
+            displ(1) = 0
+            do i=1, nprocs-1
+
+                if (rest /= 0 .and. i >= nprocs - rest ) then 
+                    displ(i+1) = i * (loc_size_vmc + 1) + 1 - offset
+                else
+                    displ(i+1) = (i * loc_size_vmc) + 1 
+                end if
+                
+            end do
+            offset = 0
+
+
+        end if    
+
+        if( rannk == 0 .and. debug) write(*,*)"Displacements: ", displ
         write(*,*) "Rank", rank, "Local size im vmc: ",loc_size_vmc
 
-        !lw_bound_vmc = rank * loc_size_vmc - (loc_size_vmc - 1)
 
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
@@ -369,7 +396,7 @@ MODULE functions
 
         print*, 'energy', energy, '+/-',energy_err 
 
-        if (rank == 0) deallocate(randnumbers_2d)
+        if (rank == 0) deallocate(randnumbers_2d, displ)
     end subroutine vmc 
 
 
