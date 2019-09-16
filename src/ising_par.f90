@@ -21,7 +21,7 @@ PROGRAM  isingmodel
     integer :: buff_size
         
     call MPI_INIT(ierr)
-    call MPI_COMM_SIZE(MPI_COMM_WORLD, numtasks, ierr)
+    call MPI_COMM_SIZE(MPI_COMM_WORLD, nprocs, ierr)
     call MPI_COMM_RANK(MPI_COMM_WORLD, rank, ierr)
 
     call cpu_time(timeinit)
@@ -70,7 +70,6 @@ PROGRAM  isingmodel
             alpha(ipar) = dble( SQRT(-2.d0*(sigma**2)*LOG(1.d0 - randnumbers_1d(low_bound) ))*sin(2*pi * randnumbers_1d(up_bound)) )
         end do
 
-        deallocate(randnumbers_1d)
     end if
    
     call MPI_BCAST(alpha, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD , ierr) 
@@ -86,10 +85,11 @@ PROGRAM  isingmodel
     lspin = 0.d0
     rspin = 0.d0
 
-    print*, 'beta_r', alpha(1)
-    print*, 'beta_s',alpha(2)
-    print*, 'Jrs',alpha(3)
- 
+    if (rank ==0 ) then
+        print*, 'beta_r', alpha(1)
+        print*, 'beta_s',alpha(2)
+        print*, 'Jrs',alpha(3)
+    end if
     !print*, "Rand calls: ", cnt
     !stop("Stopping after alpha calc")
 
@@ -110,7 +110,7 @@ PROGRAM  isingmodel
 
                 low_bound = ( ( iwalk - 1 ) * loc_size_spins  * Lx ) + ( i * loc_size_spins) - (loc_size_spins - 1) 
                 mid_bound = low_bound + 1
-                up_bound = low_bound + loc_size - 1 
+                up_bound = low_bound + loc_size_spins - 1 
                 
                 if ( randnumbers_1d(low_bound) .LT. 0.5) then
                     spin(i,iwalk) = 1.d0
@@ -138,7 +138,12 @@ PROGRAM  isingmodel
             Eo_r(iwalk) = epot(rspin,iwalk)
 
         end do
+
+        deallocate(randnumbers_1d)
+
     end if
+
+    call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
     if ( rank == 0 ) then
         do i=1, 10
@@ -166,7 +171,6 @@ PROGRAM  isingmodel
 
     call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
-    go to 99
     PRINT*, 'Begin optimization' 
     learning_rate = mu
     ecount  = 1
@@ -180,6 +184,7 @@ PROGRAM  isingmodel
 
     call vmc(alpha(1),alpha(2),alpha(3), energy, energy_err, der)
 
+    go to 99
     call cpu_time(time3)
 
 

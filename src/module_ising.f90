@@ -71,9 +71,9 @@ MODULE functions
     integer :: low_bound, up_bound, mid_bound, rest, offset
     character(len = 15) :: msg
 
-    real(8), dimension(:), allocatable :: randnumbers_1d 
-    real(8), dimension(:,:), allocatable :: randnumbers_2d, loc_rand_2d 
-    integer, dimension(:), allocatable :: displ, scounts
+    real(8), public, dimension(:), allocatable :: randnumbers_1d 
+    real(8), public, dimension(:,:), allocatable :: randnumbers_2d, loc_rand_2d 
+    integer, public, dimension(:), allocatable :: displ, scounts
 
     !#ifdef DEBUG
         logical, parameter :: debug = .true.
@@ -304,9 +304,10 @@ MODULE functions
 
         ! Root rank precomputes ( nstep1 * nwalk * [4 or 2] ) random numbers to distribute.       
 
+        buff_2d_size = (nwalk * 4) + 1
         if ( rank == 0 ) then 
-            buff_2d_size = (nwalk * 4) + 1
-            allocate(randnumbers_2d( buff_2d_size, nstep1))
+            allocate(randnumbers_2d( buff_2d_size, nstep1), stat=ierr)
+            Write(*,*) "Rank:", rank,  "Allocated Rand 2d buffer"
             randnumbers_2d = 0.0
             do j=1 , nstep1
                 it = 0
@@ -349,8 +350,11 @@ MODULE functions
         allocate(scounts(nprocs) )
         if (rank == 0 )then
             offset = nprocs - rest
-            displ(1) = 0
+
+            !All have the same load until laod balancing is required. 
             scounts = loc_size_vmc * buff_2d_size
+            displ(1) = 0
+
             do i=1, nprocs-1
 
                 if (rest /= 0 .and. i >= nprocs - rest ) then 
@@ -363,20 +367,33 @@ MODULE functions
             end do
             offset = 0
 
-
         end if    
 
         if( rank == 0 .and. debug) write(*,*)"Displacements: ", displ
         if( rank == 0 .and. debug) write(*,*)"Send counts : ", scounts 
         write(*,*) "Rank", rank, "Local size im vmc: ",loc_size_vmc
 
-        call MPI_Scatterv(randnumbers_2d,    )
+        call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+        call MPI_Scatterv(randnumbers_2d,scounts, displ, MPI_DOUBLE, loc_rand_2d, buff_2d_size * loc_size_vmc, &
+            MPI_DOUBLE,0, MPI_COMM_WORLD, ierr  )
+        call utils_mpi(ierr, rank, 'Scatter of 2d Random numbers ')
+
+
+        call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+        if (debug) then
+            do i=1, 5
+                write(*,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+            end do
+                
+        end if
 
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
         call MPI_Finalize(ierr )
 
-        DO it = 1, nstep1
+        DO it = 1, loc_size_vmc
             rn = rand()
         
             IF ( rn .lt. 0.5) THEN
