@@ -73,7 +73,7 @@ MODULE functions
 
     real(8), dimension(:), allocatable :: randnumbers_1d 
     real(8), dimension(:,:), allocatable :: randnumbers_2d, loc_rand_2d 
-    integer, dimension(:), allocatable :: displ
+    integer, dimension(:), allocatable :: displ, scounts
 
     !#ifdef DEBUG
         logical, parameter :: debug = .true.
@@ -341,17 +341,20 @@ MODULE functions
 
         write(*,*)"Rank: ",rank, "Lower_bound: ", lw_bound_vmc
 
-        ! Allocate local buff to hold loca random numbers
-        allocate(loc_rand_2d(buff_2d_size, loc_size_vmc)
+        ! Allocate local buff to hold local random numbers
+        allocate(loc_rand_2d(buff_2d_size, loc_size_vmc) )
 
-        ! Computing of local sizes by root for distrbution
+        ! Computing of local sizes and displacement by root for distrbution
         allocate(displ(nprocs) )
+        allocate(scounts(nprocs) )
         if (rank == 0 )then
             offset = nprocs - rest
             displ(1) = 0
+            scounts = loc_size_vmc * buff_2d_size
             do i=1, nprocs-1
 
                 if (rest /= 0 .and. i >= nprocs - rest ) then 
+                    scounts(i+1) = (loc_size_vmc + 1) * buff_2d_size
                     displ(i+1) = (  ( i * (loc_size_vmc + 1) + 1 - offset ) - 1 ) * ( buff_2d_size ) + 1
                 else
                     displ(i+1) = (  ( (i * loc_size_vmc) + 1) - 1 ) * ( buff_2d_size ) + 1 
@@ -364,9 +367,11 @@ MODULE functions
         end if    
 
         if( rank == 0 .and. debug) write(*,*)"Displacements: ", displ
+        if( rank == 0 .and. debug) write(*,*)"Send counts : ", scounts 
         write(*,*) "Rank", rank, "Local size im vmc: ",loc_size_vmc
 
-        !call MPI_Scatterv(   )
+        call MPI_Scatterv(randnumbers_2d,    )
+
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
         call MPI_Finalize(ierr )
@@ -403,6 +408,7 @@ MODULE functions
 
         if (rank == 0) deallocate(randnumbers_2d, displ)
         deallocate(loc_rand_2d)
+        deallocate(scounts)
     end subroutine vmc 
 
 
