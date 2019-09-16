@@ -67,13 +67,20 @@ MODULE functions
 
     ! MPI stuff
     integer :: ierr
-    integer :: numtasks, rank
+    integer :: nprocs, rank
     integer :: loc_size, loc_size_spins, loc_size_vmc
     integer :: low_bound, up_bound, mid_bound, rest, offset
     character(len = 15) :: msg
 
     real(8), dimension(:), allocatable :: randnumbers_1d 
     real(8), dimension(:,:), allocatable :: randnumbers_2d 
+   
+    !#ifdef DEBUG
+        logical, parameter :: debug = .true.
+    !#else
+    !    logical, parameter :: debug = .false.
+    !
+    !#endif 
 
     CONTAINS
 
@@ -85,10 +92,10 @@ MODULE functions
     character(len=*), intent(in) :: msg 
 
         if ( ierror .ne. 0 ) then
-            write(*, '(A11,1x,I2,1X,A7,1X,I2,1X,A15)') "Error: code", ierror, "by rank", rank, "from", msg 
+            write(*, '(A11,1x,I2,1X,A7,1X,I2,1X,A4,1X,A15)') "Error: code", ierror, "by rank", rank, "from", msg 
             call MPI_Finalize(ierror)
         else
-            write(*, '(A12,1x,I2,1X,A7,1X,I2,1X,A15)') "Success code", ierror, "by rank", rank, "from", msg 
+            write(*, '(A12,1x,I2,1X,A7,1X,I2,1X,A4,1X,A15)') "Success code", ierror, "by rank", rank, "from", msg 
         end if
 
         end subroutine utils_mpi
@@ -300,19 +307,38 @@ MODULE functions
         if ( rank == 0 ) then 
             buff_size = (nwalk * 4) + 1
             allocate(randnumbers_2d( buff_size, nstep1))
-
+            randnumbers_2d = 0.0
             do j=1 , nstep1
-                cnt = 0
+                it = 0
                 do i=1, buff_size
-                    cnt = cnt + 1
+                    it = it + 1
                     randnumbers_2d(i,j) = rand()
                     lead_num = randnumbers_2d (1,j)
-                    if ( lead_num .ge. 0.5 .and. cnt == (nwalk *2) + 1  ) exit
+                    if ( lead_num .ge. 0.5 .and. it == (nwalk *2) + 1  ) exit
                 end do
             end do
         end if
 
+        if ( rank == 0 .and. debug ) then
+            open(14,file='results_par/randnumbers_2d.dat',status='unknown')
+            do i=1, buff_size
+                write(14,'(5(f6.4,1X))') randnumbers_2d( i,1:5 )
+            end do
+            close(14)
+        endif 
+
+        loc_size_vmc = int( nstep1 / nprocs )
+        rest = mod(nstep1, nprocs)
         
+        if (rest /= 0 .and. rank >= nprocs - rest ) loc_size_vmc = loc_size_vmc + 1
+        write(*,*) "Rank", rank, "Local size im vmc: ",loc_size_vmc
+
+        !lw_bound_vmc = rank * loc_size_vmc - (loc_size_vmc - 1)
+
+        call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+        call MPI_Finalize(ierr )
+
         DO it = 1, nstep1
             rn = rand()
         
