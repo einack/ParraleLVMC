@@ -318,12 +318,16 @@ MODULE functions
                     if ( lead_num .ge. 0.5 .and. it == (nwalk *2) + 1  ) exit
                 end do
             end do
+        else   
+            allocate(randnumbers_2d(1,1), stat=ierr)
+            Write(*,*) "Rank:", rank,  "Allocated Rand 2d buffer"
+            randnumbers_2d = 0.0
         end if
 
         if ( rank == 0 .and. debug ) then
             open(14,file='results_par/randnumbers_2d.dat',status='unknown')
             do i=1, buff_2d_size
-                write(14,'(5(f6.4,1X))') randnumbers_2d( i,1:5 )
+                write(14,'(5(f6.4,1X))') randnumbers_2d( i,5001:5005 )
             end do
             close(14)
         endif 
@@ -359,9 +363,9 @@ MODULE functions
 
                 if (rest /= 0 .and. i >= nprocs - rest ) then 
                     scounts(i+1) = (loc_size_vmc + 1) * buff_2d_size
-                    displ(i+1) = (  ( i * (loc_size_vmc + 1) + 1 - offset ) - 1 ) * ( buff_2d_size ) + 1
+                    displ(i+1) = (  ( i * (loc_size_vmc + 1) + 1 - offset ) - 1 ) * ( buff_2d_size ) 
                 else
-                    displ(i+1) = (  ( (i * loc_size_vmc) + 1) - 1 ) * ( buff_2d_size ) + 1 
+                    displ(i+1) = (  ( (i * loc_size_vmc) + 1) - 1 ) * ( buff_2d_size ) 
                 end if
                 
             end do
@@ -382,12 +386,27 @@ MODULE functions
 
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
-        if (debug) then
-            do i=1, 5
-                write(*,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+        if ( debug .and. rank==0 ) then
+            open(15,file='results_par/randnumbers_2d_0.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(15,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
             end do
-                
-        end if
+            close(15)
+        endif 
+        if ( debug .and. rank==1) then
+            open(16,file='results_par/randnumbers_2d_1.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(16,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+            end do
+            close(16)
+        endif 
+        if ( debug .and. rank==2) then
+            open(17,file='results_par/randnumbers_2d_2.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(17,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+            end do
+            close(17)
+        endif 
 
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
@@ -423,7 +442,8 @@ MODULE functions
 
         print*, 'energy', energy, '+/-',energy_err 
 
-        if (rank == 0) deallocate(randnumbers_2d, displ)
+        deallocate(randnumbers_2d)
+        deallocate(displ)
         deallocate(loc_rand_2d)
         deallocate(scounts)
     end subroutine vmc 
