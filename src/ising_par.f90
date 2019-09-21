@@ -11,7 +11,7 @@ PROGRAM  isingmodel
     Implicit none
 
     integer :: ipar
-    real(8)    :: rn1, rn2
+    !real(8)    :: rn1, rn2
     REAL(8) :: ebavg,eebavg,eebavg2 
     INTEGER :: ecount, ecount2, ibavg,iibavg,isgd
     real(8) :: sigma,learning_rate

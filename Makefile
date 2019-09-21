@@ -3,7 +3,7 @@ SRC_DIR=src
 OBJ_DIR=objects
 BIN_DIR=bin
 INCLUDE_DIR=objects
-FFLAGS= -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
+FFLAGS= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
 
 #a_mpi.out: random.f90 module_ising.f90 ising.f90 
 #	mpif90 -DDEBUG -o a_mpi.out random.f90 module_ising.f90 ising.f90
