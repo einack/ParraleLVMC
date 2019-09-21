@@ -66,10 +66,21 @@ MODULE functions
 
 
     ! MPI stuff
-    integer :: ierr
-    integer :: numtasks, rank
-    integer :: loc_size, low_bound, up_bound, mid_bound, rest, offset
+    integer :: nprocs, rank, ierr
+    integer :: loc_size, loc_size_spins, loc_size_vmc, lw_bound_vmc, buff_2d_size 
+    integer :: low_bound, up_bound, mid_bound, rest, offset
     character(len = 15) :: msg
+
+    real(8), public, dimension(:), allocatable :: randnumbers_1d 
+    real(8), public, dimension(:,:), allocatable :: randnumbers_2d, loc_rand_2d 
+    integer, public, dimension(:), allocatable :: displ, scounts
+
+    !#ifdef DEBUG
+        logical, parameter :: debug = .true.
+    !#else
+    !    logical, parameter :: debug = .false.
+    !
+    !#endif 
 
     CONTAINS
 
@@ -81,10 +92,10 @@ MODULE functions
     character(len=*), intent(in) :: msg 
 
         if ( ierror .ne. 0 ) then
-            write(*, '(A11,1x,I2,1X,A7,1X,I2,1X,A15)') "Error: code", ierror, "by rank", rank, "from", msg 
+            write(*, '(A11,1x,I2,1X,A7,1X,I2,1X,A4,1X,A15)') "Error: code", ierror, "by rank", rank, "from", msg 
             call MPI_Finalize(ierror)
         else
-            write(*, '(A12,1x,I2,1X,A7,1X,I2,1X,A15)') "Success code", ierror, "by rank", rank, "from", msg 
+            write(*, '(A12,1x,I2,1X,A7,1X,I2,1X,A4,1X,A15)') "Success code", ierror, "by rank", rank, "from", msg 
         end if
 
         end subroutine utils_mpi
@@ -282,46 +293,155 @@ MODULE functions
         real(8), intent(out) :: energy, energy_err
         real(8), intent(out), dimension(3):: derivative 
         real(8) :: eebavg, eebavg2, var_E
-        real(8) :: rn
+        real(8) :: rn, lead_num
         real(8), dimension(3) :: der, der_var_E
-        integer :: iibavg, it
+        integer :: iibavg, it  
+    
+        !MPI stuff
+        integer :: loc_nstep1
+        real(8), dimension(:), allocatable :: var_E_buff 
+
 
         eebavg=0.0
         eebavg2=0.0
         der = 0.0
         iibavg = 0
-      
-        !if (root ==0 ) then
-    
-         !   do j=1, nstep1
-          !      do i=1, nwalk * 4
-           !         rn1 = rand()
-            !        randbuff(i,j) = rand()
-             !   end do
-            !end do
 
-        !end if
+        ! Root rank precomputes ( nstep1 * nwalk * [4 or 2] ) random numbers to distribute.       
 
-        DO it = 1, nstep1
-            rn = rand()
-        
-            IF ( rn .lt. 0.5) THEN
+        buff_2d_size = (nwalk * 4) + 1
+        if ( rank == 0 ) then 
+            allocate(randnumbers_2d( buff_2d_size, nstep1), stat=ierr)
+            Write(*,*) "Rank:", rank,  "Allocated Rand 2d buffer"
+            randnumbers_2d = 0.0
+            do j=1 , nstep1
+                it = 0
+                do i=1, buff_2d_size
+                    it = it + 1
+                    randnumbers_2d(i,j) = rand()
+                    lead_num = randnumbers_2d (1,j)
+                    if ( lead_num .ge. 0.5 .and. it == (nwalk *2) + 1  ) exit
+                end do
+            end do
+        else   
+            allocate(randnumbers_2d(1,1), stat=ierr)
+            Write(*,*) "Rank:", rank,  "Allocated Rand 2d buffer"
+            randnumbers_2d = 0.0
+        end if
+
+        if ( rank == 0 .and. debug ) then
+            open(14,file='results_par/randnumbers_2d.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(14,'(6(f6.4,1X))') randnumbers_2d( i,4996:5001 )
+            end do
+            close(14)
+        endif 
+
+        loc_size_vmc = int( nstep1 / nprocs )
+        rest = mod(nstep1, nprocs)
+        offset = 0
+        lw_bound_vmc = rank * loc_size_vmc + 1 
+
+        ! Load balancing: Distribution of extra pay load from bottom
+        if (rest /= 0 .and. rank >= nprocs - rest ) then 
+            offset = nprocs - rest
+            loc_size_vmc = loc_size_vmc + 1
+            lw_bound_vmc = rank * loc_size_vmc + 1 - offset
+        end if
+
+        write(*,*)"Rank: ",rank, "Lower_bound: ", lw_bound_vmc
+
+        ! Allocate local buff to hold local random numbers
+        allocate(loc_rand_2d(buff_2d_size, loc_size_vmc) )
+
+        ! Computing of local sizes and displacement by root for distrbution
+        allocate(displ(nprocs) )
+        allocate(scounts(nprocs) )
+        if (rank == 0 )then
+            offset = nprocs - rest
+
+            !All have the same load until laod balancing is required. 
+            scounts = loc_size_vmc * buff_2d_size
+            displ(1) = 0
+
+            do i=1, nprocs-1
+
+                if (rest /= 0 .and. i >= nprocs - rest ) then 
+                    scounts(i+1) = (loc_size_vmc + 1) * buff_2d_size
+                    displ(i+1) = (  ( i * (loc_size_vmc + 1) + 1 - offset ) - 1 ) * ( buff_2d_size ) 
+                else
+                    displ(i+1) = (  ( (i * loc_size_vmc) + 1) - 1 ) * ( buff_2d_size ) 
+                end if
+                
+            end do
+            offset = 0
+
+        end if    
+
+        if( rank == 0 .and. debug) write(*,*)"Displacements: ", displ
+        if( rank == 0 .and. debug) write(*,*)"Send counts : ", scounts 
+        write(*,*) "Rank", rank, "Local size im vmc: ",loc_size_vmc
+
+        call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+        call MPI_Scatterv(randnumbers_2d,scounts, displ, MPI_DOUBLE, loc_rand_2d, buff_2d_size * loc_size_vmc, &
+            MPI_DOUBLE,0, MPI_COMM_WORLD, ierr  )
+        call utils_mpi(ierr, rank, 'Scatter of 2d Random numbers ')
+
+
+        call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+        if ( debug .and. rank==0 ) then
+            open(15,file='results_par/randnumbers_2d_0.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(15,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+            end do
+            close(15)
+        endif 
+        if ( debug .and. rank==1) then
+            open(16,file='results_par/randnumbers_2d_1.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(16,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+            end do
+            close(16)
+        endif 
+        if ( debug .and. rank==2) then
+            open(18,file='results_par/randnumbers_2d_2.dat',status='unknown')
+            do i=1, buff_2d_size
+                write(18,'(5(f6.4,1X))') loc_rand_2d( i,1:5 )
+            end do
+            close(18)
+        endif 
+
+        call MPI_Barrier(MPI_COMM_WORLD, ierr)
+
+
+        allocate(var_E_buff(loc_size_vmc))
+        DO it = 1, loc_size_vmc !, nstep1
+            !rn = rand()
+             
+            loc_nstep1 = it
+
+            IF ( loc_rand_2d(1,it) .lt. 0.5) THEN
             ! Move only shadow spins
-                call metropolis_hidden( beta_r, beta_s, Jrs, var_E, der_var_E)
+                call metropolis_hidden( beta_r, beta_s, Jrs, var_E, der_var_E, loc_nstep1)
             ELSE 
             ! Move only physical spin
-                CALL metropolis_real( beta_r, Jrs, var_E, der_var_E)
+                CALL metropolis_real( beta_r, Jrs, var_E, der_var_E, loc_nstep1)
             END IF
         
+            call MPI_Barrier(MPI_COMM_WORLD, ierr)
+            stop!call MPI_Finalize(ierr )
 
-            IF ( ( MOD( it , ncorr0 ) == 0 ) .AND. ( it .GT. ncorr0 ) )THEN
+            IF ( ( MOD( ( lw_bound_vmc-1+it ) , ncorr0 ) == 0 ) .AND. ( lw_bound_vmc .GT. ncorr0 ) )THEN
                 eebavg  = eebavg  + var_E 
                 eebavg2 = eebavg2 +(var_E)**2.d0
                 der = der + der_var_E 
                 iibavg  = iibavg  + 1
             END IF
       
-            WRITE(9,'(i10,2F22.8)')  it, var_E
+            !WRITE(9,'(i10,2F22.8)')  it, var_E
+            var_E_buff(it) =  var_E
         END DO  
        
        ! Results 
@@ -331,6 +451,12 @@ MODULE functions
         derivative = der/dble(iibavg)
 
         print*, 'energy', energy, '+/-',energy_err 
+
+        deallocate(randnumbers_2d)
+        deallocate(displ)
+        deallocate(loc_rand_2d)
+        deallocate(scounts)
+        deallocate(var_E_buff)
     end subroutine vmc 
 
 
@@ -338,7 +464,7 @@ MODULE functions
     ! This subroutine performs Metropolis Algorithm on hidden spins
     ! ********************************************************************************************
 
-    subroutine metropolis_hidden(beta_r, beta_s, Jrs, var_E, der_var_E)
+    subroutine metropolis_hidden(beta_r, beta_s, Jrs, var_E, der_var_E, loc_nstep1)
         REAL(8), INTENT(IN) :: beta_s, beta_r, Jrs
         real(8), intent(out) :: var_E
         real(8), intent(out), dimension(3) :: der_var_E
@@ -352,6 +478,10 @@ MODULE functions
         real(8) ::  lweight,rweight,lEcl_rs,rEcl_rs
         real(8) :: rn
         Real(8) :: der_locE_r , der_locE_rs, der_locE_s
+
+        !Mpi stuff
+        integer :: it
+        integer, intent(in) :: loc_nstep1
 
         avg_clas   =0.d0
         ls_avg_clas=0.d0
@@ -374,10 +504,13 @@ MODULE functions
 
         !  print*, 'b', ecum1
 
+        write(*,*)"Rank ",rank, "My loc_nstep1 Metro-hidden",  loc_nstep1
+
         ! Move a walker
+        it = 1
         DO iwalk = 1, nwalk
 
-            stobemoved_l = INT((rand() * Nspins) + 1.d0) 
+            stobemoved_l = INT(( loc_rand_2d( (it + 1) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0) 
 
             lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
 
@@ -387,7 +520,7 @@ MODULE functions
 
             prob_l   = exp(-beta_s * deltaE_l + ds_l)
 
-            rn = rand()
+            rn = loc_rand_2d( (it + 2) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
 
             IF( prob_l .GE. 1.D0 )THEN
                 Eo_l(iwalk) = Eo_l(iwalk) + deltaE_l
@@ -397,7 +530,7 @@ MODULE functions
                 lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
             END IF
 
-            stobemoved_r = INT((rand() * Nspins) + 1.d0)
+            stobemoved_r = INT(( loc_rand_2d( (it + 3) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
             rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
 
@@ -405,7 +538,7 @@ MODULE functions
             ds_r     = 2.d0*Jrs*spin(stobemoved_r,iwalk)*rspin(stobemoved_r,iwalk)
             prob_r   = exp(-beta_s*deltaE_r+ds_r)
 
-            rn = rand()
+            rn = loc_rand_2d( (it + 4) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
             IF(prob_r .GE. 1.D0 )THEN
                 Eo_r(iwalk) = Eo_r(iwalk) + deltaE_r
             ELSE IF(DBLE(rn) .LT. prob_r)THEN
@@ -470,20 +603,24 @@ end subroutine metropolis_hidden
 ! This subroutine performs Metropolis Algorithm on real spins
 ! ********************************************************************************************
 
-SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E)
-REAL(8), INTENT(IN) :: beta_r,Jrs
-real(8), intent(out) :: var_E
-real(8), intent(out), dimension(3) :: der_var_E
-INTEGER :: iwalk
-REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
-INTEGER :: imoveact
-REAL(8) :: prn
-REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
-REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
-Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
+SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
+    REAL(8), INTENT(IN) :: beta_r,Jrs
+    real(8), intent(out) :: var_E
+    real(8), intent(out), dimension(3) :: der_var_E
+    INTEGER :: iwalk
+    REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
+    INTEGER :: imoveact
+    REAL(8) :: prn
+    REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
+    REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
+    Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
 
-Real(8) :: der_locE_r , der_locE_rs, der_locE_s
-Real(8) :: magn1  
+    Real(8) :: der_locE_r , der_locE_rs, der_locE_s
+    Real(8) :: magn1  
+
+    !Mpi stuff
+    integer :: it
+    integer, intent(in) :: loc_nstep1
 
     avg_clas=0.d0
     ls_avg_clas=0.d0
@@ -508,11 +645,12 @@ Real(8) :: magn1
     magn1 = 0.d0
     count = 0
        
-
+    write(*,*)"Rank ",rank, "My loc_nstep1 Metro-Real",  loc_nstep1
     ! Move a walker
+    it = 1
     do iwalk = 1, nwalk
                
-        imoveact = INT((rand() * Nspins) + 1.d0)
+        imoveact = INT(( loc_rand_2d( (it + 1) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
         spin(imoveact,iwalk) = -spin(imoveact,iwalk)
 
@@ -521,7 +659,7 @@ Real(8) :: magn1
  
         prob   = exp(-2.d0*beta_r*deltaE+dshadow) 
      
-        prn = rand() 
+        prn = loc_rand_2d( (it + 2) + (4 * (iwalk - 1 )) , loc_nstep1 )  
 
         IF(prob .GE. 1.D0 )THEN
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
@@ -588,29 +726,6 @@ Real(8) :: magn1
 
 END SUBROUTINE metropolis_real
 
-
-
-! ******************************************************************************************
-! This subroutine performs stochastic gradient descend
-! ****************************************************************************************
-
-  subroutine sgd(beta_r,beta_s,Jrs,energy,energy_err,derivative, mu_t)
-   REAL(8), INTENT(inout) :: beta_s, beta_r, Jrs
-   real(8), intent(inout) :: energy, energy_err
-   real(8), intent(inout), dimension(3) :: derivative 
-   !real(8) :: mu_t
-   real(8), intent(in) :: mu_t
- 
-   call vmc(beta_r,beta_s,Jrs,energy,energy_err,derivative)
-   !mu_t    = (1.d0 - dble(count)/dble(nstep2)) !**(0.7)     
-   beta_r  = beta_r - mu_t*derivative(1)
-   beta_s  = beta_s - mu_t*derivative(2)
-   Jrs     = Jrs    - mu_t*derivative(3)
-   
-  end subroutine sgd
-! *********************************************************************************************
-
-
 ! *********************************************************************************************
 ! This subroutine computes the importance sampling weight
 ! *********************************************************************************************
@@ -642,6 +757,29 @@ INTEGER              :: is
   
   END SUBROUTINE is_weight
 ! ********************************************************************************************
+
+
+! ******************************************************************************************
+! This subroutine performs stochastic gradient descend
+! ****************************************************************************************
+
+  subroutine sgd(beta_r,beta_s,Jrs,energy,energy_err,derivative, mu_t)
+   REAL(8), INTENT(inout) :: beta_s, beta_r, Jrs
+   real(8), intent(inout) :: energy, energy_err
+   real(8), intent(inout), dimension(3) :: derivative 
+   !real(8) :: mu_t
+   real(8), intent(in) :: mu_t
+ 
+   call vmc(beta_r,beta_s,Jrs,energy,energy_err,derivative)
+   !mu_t    = (1.d0 - dble(count)/dble(nstep2)) !**(0.7)     
+   beta_r  = beta_r - mu_t*derivative(1)
+   beta_s  = beta_s - mu_t*derivative(2)
+   Jrs     = Jrs    - mu_t*derivative(3)
+   
+  end subroutine sgd
+! *********************************************************************************************
+
+
 
 
 
