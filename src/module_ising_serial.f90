@@ -320,9 +320,9 @@ MODULE functions_serial
             rn = rand()
 
             IF( prob_l .GE. 1.D0 )THEN
-                Eo_l(iwalk) = Eo_l(iwalk) + deltaE_l
+                Eo_l(iwalk) = epot(lspin,iwalk)
             ELSE IF(DBLE(rn) .LT. prob_l)THEN
-                Eo_l(iwalk) = Eo_l(iwalk) + deltaE_l
+                Eo_l(iwalk) = epot(lspin,iwalk)
             ELSE IF(DBLE(rn) .GE. prob_l)THEN
                 lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
             END IF
@@ -337,9 +337,9 @@ MODULE functions_serial
 
             rn = rand()
             IF(prob_r .GE. 1.D0 )THEN
-                Eo_r(iwalk) = Eo_r(iwalk) + deltaE_r
+                Eo_r(iwalk) = epot(rspin,iwalk)
             ELSE IF(DBLE(rn) .LT. prob_r)THEN
-                Eo_r(iwalk) = Eo_r(iwalk) + deltaE_r
+                Eo_r(iwalk) = epot(rspin,iwalk)
             ELSE IF(DBLE(rn) .GE. prob_r)THEN
                 rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
             END IF
@@ -455,11 +455,12 @@ Real(8) :: magn1
 
         IF(prob .GE. 1.D0 )THEN
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
-            Eo(iwalk) = Eo(iwalk) + deltaE
+           ! Eo(iwalk) = Eo(iwalk) + deltaE
+            Eo(iwalk) = epot(spin,iwalk)
             count = count + 1      
         ELSE IF(DBLE(prn) .LT. prob)THEN 
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk)
-            Eo(iwalk) = Eo(iwalk) + deltaE
+            Eo(iwalk) = epot(spin,iwalk)
             count = count + 1
         ELSE IF(DBLE(prn) .GE. prob)THEN
             spin(imoveact,iwalk) = -spin(imoveact,iwalk)
