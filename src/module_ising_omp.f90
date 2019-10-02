@@ -3,7 +3,8 @@
  ! washboard potential with few wells
  ! ******************************************************************************************* *
 
-MODULE functions_serial
+MODULE functions_omp
+    Use omp_lib
     Implicit none
 
     INTEGER, PARAMETER    ::  N1 = 100100, N2 = 100, ncorr0=2000  
@@ -61,6 +62,9 @@ MODULE functions_serial
 
     real(8), public :: beta_r,beta_s,Jrs 
 
+	!OMP Stuff
+    real(8), public, dimension(:), allocatable :: randnumbers_1d 
+    integer :: low_bound, up_bound, mid_bound, rest, offset, loc_size_spins, buff_size
 
     CONTAINS
 
@@ -152,7 +156,7 @@ MODULE functions_serial
 
         count=0
 
-        open(unit=12,file='results_serial/random.dat', status='unknown')
+        open(unit=12,file='results_omp/random.dat', status='unknown')
 
     END SUBROUTINE initialize
 !********************************************************************************************
@@ -305,8 +309,6 @@ MODULE functions_serial
         !  print*, 'b', ecum1
 
         ! Move a walker
-        #pragma omp parallel
-        #pragma omp do
 
         DO iwalk = 1, nwalk
 
@@ -629,7 +631,7 @@ INTEGER, INTENT(IN) :: imoveact
 END FUNCTION ediff
 
 ! ********************************************************************************************
-END MODULE functions_serial
+END MODULE functions_omp
 
 
 
