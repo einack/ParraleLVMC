@@ -65,6 +65,7 @@ MODULE functions_omp
 	!OMP Stuff
     real(8), public, dimension(:), allocatable :: randnumbers_1d 
     integer :: low_bound, up_bound, mid_bound, rest, offset, loc_size_spins, buff_size
+	integer :: nthreads
 
     CONTAINS
 
