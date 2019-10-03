@@ -77,8 +77,10 @@ PROGRAM  isingmodel
 
     loc_size_spins = 3
 
-    !$omp parallel 
-    Write(7,*) "Total Num of Rand calls: ", cnt
+    !$omp parallel
+    nthreads = OMP_GET_NUM_THREADS() 
+    Write(*,*) "Total Num of threads : ", nthreads
+    Write(*,*) "Total Num of Rand calls: ", cnt
     do iwalk = 1, nwalk
     !$omp do 
         do i = 1, Lx
