@@ -4,15 +4,17 @@ OBJ_DIR=objects
 BIN_DIR=bin
 INCLUDE_DIR=objects
 FFLAGS= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
+FFLAGSOMP= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable -fopenmp #-DDEBUG 
 
-#a_mpi.out: random.f90 module_ising.f90 ising.f90 
-#	mpif90 -DDEBUG -o a_mpi.out random.f90 module_ising.f90 ising.f90
 
-#a.out: random.f90 module_ising.f90 ising.f90 
-#	gfortran -o a.out random.f90 module_ising.f90 ising.f90
+ising_omp.x: setup $(BIN_DIR)/ising_omp.x 
+
 ising_serial.x: setup $(BIN_DIR)/ising_serial.x 
 
 ising_par.x: setup $(BIN_DIR)/ising_par.x 
+
+$(BIN_DIR)/ising_omp.x: $(OBJ_DIR)/ising_omp.o $(OBJ_DIR)/functions_omp.o  
+	gfortran $(FFLAGSOMP) -o $@ $^
 
 $(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial.o  
 	gfortran  -o $@ $^
@@ -20,15 +22,12 @@ $(BIN_DIR)/ising_serial.x: $(OBJ_DIR)/ising_serial.o $(OBJ_DIR)/functions_serial
 $(BIN_DIR)/ising_par.x: $(OBJ_DIR)/ising_par.o $(OBJ_DIR)/functions.o  
 	mpif90  -o $@ $^
 	
-#random_serial: setup $(OBJ_DIR)/random_serial.o 
+##############################################################################
 
-#$(OBJ_DIR)/random_serial.o: $(SRC_DIR)/random.f90  
-#	gfortran $(FFLAGS)  -c $< -o $@
+ising_omp: setup $(OBJ_DIR)/ising_omp.o 
 
-#random: setup $(OBJ_DIR)/random.o 
-
-#$(OBJ_DIR)/random.o: $(SRC_DIR)/random.f90  
-#	mpif90 $(FFLAGS)  -c $< -o $@
+$(OBJ_DIR)/ising_omp.o: $(SRC_DIR)/ising_omp.f90 $(OBJ_DIR)/functions_omp.o 
+	gfortran $(FFLAGSOMP)  -c $< -o $@ -I$(INCLUDE_DIR)
 
 ising_serial: setup $(OBJ_DIR)/ising_serial.o 
 
@@ -40,11 +39,17 @@ ising_par: setup $(OBJ_DIR)/ising_par.o
 $(OBJ_DIR)/ising_par.o: $(SRC_DIR)/ising_par.f90 $(OBJ_DIR)/functions.o 
 	mpif90 $(FFLAGS)  -c $< -o $@ -I$(INCLUDE_DIR)
 
+##############################################################################
+
+functions_omp: setup $(OBJ_DIR)/functions_omp.o
+
+$(OBJ_DIR)/functions_omp.o: $(SRC_DIR)/module_ising_omp.f90
+	gfortran $(FFLAGSOMP) -J $(INCLUDE_DIR) -c $^ -o $@
+
 functions_serial: setup $(OBJ_DIR)/functions_serial.o
 
 $(OBJ_DIR)/functions_serial.o: $(SRC_DIR)/module_ising_serial.f90
 	gfortran $(FFLAGS) -J $(INCLUDE_DIR) -c $^ -o $@
-
 
 functions: setup $(OBJ_DIR)/functions.o
 
@@ -60,6 +65,10 @@ test_serial:
 	@mkdir -p results_serial
 	./$(BIN_DIR)/ising_serial.x
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
+
+test_omp:
+	@mkdir -p results_omp
+	./$(BIN_DIR)/ising_omp.x
 
 test_par:
 	@mkdir -p results_par
