@@ -62,10 +62,12 @@ MODULE functions_omp
 
     real(8), public :: beta_r,beta_s,Jrs 
 
-	!OMP Stuff
+    !OMP Stuff
     real(8), public, dimension(:), allocatable :: randnumbers_1d 
-    integer :: low_bound, up_bound, mid_bound, rest, offset, loc_size_spins, buff_size
-	integer :: nthreads
+    integer :: low_bound, up_bound, mid_bound, rest, offset, loc_size_spins, buff_size, buff_2d_size
+    integer :: nthreads
+
+    real(8), public, dimension(:,:), allocatable :: randnumbers_2d, loc_rand_2d 
 
     CONTAINS
 
@@ -228,9 +230,27 @@ MODULE functions_omp
         real(8), intent(out) :: energy, energy_err
         real(8), intent(out), dimension(3):: derivative 
         real(8) :: eebavg, eebavg2, var_E
-        real(8) :: rn
+        !real(8) :: rn
         real(8), dimension(3) :: der, der_var_E
         integer :: iibavg, it
+
+        !MPI stuff
+        integer :: loc_nstep1, ierr
+        real(8) :: lead_num
+
+        buff_2d_size = (nwalk * 4) + 1
+        allocate(randnumbers_2d( buff_2d_size, nstep1), stat=ierr)
+        Write(*,*) "Allocated Rand 2d buffer"
+        randnumbers_2d = 0.0
+        do j=1 , nstep1
+            it = 0
+            do i=1, buff_2d_size
+                it = it + 1
+                randnumbers_2d(i,j) = rand()
+                lead_num = randnumbers_2d (1,j)
+                if ( lead_num .ge. 0.5 .and. it == (nwalk *2) + 1  ) exit
+            end do
+        end do
 
         eebavg=0.0
         eebavg2=0.0
@@ -238,14 +258,16 @@ MODULE functions_omp
         iibavg = 0
        
         DO it = 1, nstep1
-            rn = rand()
+            !rn = rand()
+
+            loc_nstep1 = it
         
-            IF ( rn .lt. 0.5) THEN
+            IF ( randnumbers_2d(1,it) .lt. 0.5) THEN
             ! Move only shadow spins
-                call metropolis_hidden( beta_r, beta_s, Jrs, var_E, der_var_E)
+                call metropolis_hidden( beta_r, beta_s, Jrs, var_E, der_var_E, loc_nstep1)
             ELSE 
             ! Move only physical spin
-                CALL metropolis_real( beta_r, Jrs, var_E, der_var_E)
+                CALL metropolis_real( beta_r, Jrs, var_E, der_var_E, loc_nstep1)
             END IF
         
 
@@ -266,6 +288,8 @@ MODULE functions_omp
         derivative = der/dble(iibavg)
 
         print*, 'energy', energy, '+/-',energy_err 
+
+        deallocate(randnumbers_2d)
     end subroutine vmc 
 
 
@@ -273,7 +297,7 @@ MODULE functions_omp
     ! This subroutine performs Metropolis Algorithm on hidden spins
     ! ********************************************************************************************
 
-    subroutine metropolis_hidden(beta_r, beta_s, Jrs, var_E, der_var_E)
+    subroutine metropolis_hidden(beta_r, beta_s, Jrs, var_E, der_var_E, loc_nstep1)
         REAL(8), INTENT(IN) :: beta_s, beta_r, Jrs
         real(8), intent(out) :: var_E
         real(8), intent(out), dimension(3) :: der_var_E
@@ -287,6 +311,10 @@ MODULE functions_omp
         real(8) ::  lweight,rweight,lEcl_rs,rEcl_rs
         real(8) :: rn
         Real(8) :: der_locE_r , der_locE_rs, der_locE_s
+
+        !OMP stuff
+        integer :: it
+        integer, intent(in) :: loc_nstep1
 
         avg_clas   =0.d0
         ls_avg_clas=0.d0
@@ -311,9 +339,17 @@ MODULE functions_omp
 
         ! Move a walker
 
+        !$omp parallel
+        it = 1
+
+        
+        !$omp do & 
+        !$omp& reduction (+: avg_clas, ls_avg_clas, rs_avg_clas, ls_avg_mcla, rs_avg_mcla, ls_avg_eloc) & 
+        !$omp& reduction (+: rs_avg_eloc, ecum1, ecum2, ecum3, ecum4, scum1, scum2, rscum1, rscum2) 
         DO iwalk = 1, nwalk
 
-            stobemoved_l = INT((rand() * Nspins) + 1.d0) 
+            !stobemoved_l = INT((rand() * Nspins) + 1.d0) 
+            stobemoved_l = INT(( randnumbers_2d( (2) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0) 
 
             lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
 
@@ -323,7 +359,8 @@ MODULE functions_omp
 
             prob_l   = exp(-beta_s * deltaE_l + ds_l)
 
-            rn = rand()
+            !rn = rand()
+            rn = randnumbers_2d( (3) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
 
             IF( prob_l .GE. 1.D0 )THEN
                 Eo_l(iwalk) = epot(lspin,iwalk)
@@ -333,7 +370,8 @@ MODULE functions_omp
                 lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
             END IF
 
-            stobemoved_r = INT((rand() * Nspins) + 1.d0)
+            !stobemoved_r = INT((rand() * Nspins) + 1.d0)
+            stobemoved_r = INT(( randnumbers_2d( (4) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
             rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
 
@@ -341,7 +379,9 @@ MODULE functions_omp
             ds_r     = 2.d0*Jrs*spin(stobemoved_r,iwalk)*rspin(stobemoved_r,iwalk)
             prob_r   = exp(-beta_s*deltaE_r+ds_r)
 
-            rn = rand()
+            !rn = rand()
+            rn = randnumbers_2d( (5) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
+
             IF(prob_r .GE. 1.D0 )THEN
                 Eo_r(iwalk) = epot(rspin,iwalk)
             ELSE IF(DBLE(rn) .LT. prob_r)THEN
@@ -381,6 +421,8 @@ MODULE functions_omp
             rscum2 = rscum2 + rEcl_rs*ls_eloc
 
         END DO
+        !$omp end do 
+        !$omp end parallel
 
 
     der_locE_r  = (avg_clas*rs_avg_eloc)/dble((nwalk)**2) - (ecum2)/dble(nwalk) + &
@@ -406,20 +448,24 @@ end subroutine metropolis_hidden
 ! This subroutine performs Metropolis Algorithm on real spins
 ! ********************************************************************************************
 
-SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E)
-REAL(8), INTENT(IN) :: beta_r,Jrs
-real(8), intent(out) :: var_E
-real(8), intent(out), dimension(3) :: der_var_E
-INTEGER :: iwalk
-REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
-INTEGER :: imoveact
-REAL(8) :: prn
-REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
-REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
-Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
+SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
+    REAL(8), INTENT(IN) :: beta_r,Jrs
+    real(8), intent(out) :: var_E
+    real(8), intent(out), dimension(3) :: der_var_E
+    INTEGER :: iwalk
+    REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
+    INTEGER :: imoveact
+    REAL(8) :: prn
+    REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
+    REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
+    Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
 
-Real(8) :: der_locE_r , der_locE_rs, der_locE_s
-Real(8) :: magn1  
+    Real(8) :: der_locE_r , der_locE_rs, der_locE_s
+    Real(8) :: magn1  
+
+    !OMP stuff
+    integer :: it
+    integer, intent(in) :: loc_nstep1
 
     avg_clas=0.d0
     ls_avg_clas=0.d0
@@ -448,7 +494,8 @@ Real(8) :: magn1
     ! Move a walker
     do iwalk = 1, nwalk
                
-        imoveact = INT((rand() * Nspins) + 1.d0)
+        !imoveact = INT((rand() * Nspins) + 1.d0)
+        imoveact = INT(( randnumbers_2d( (2) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
         spin(imoveact,iwalk) = -spin(imoveact,iwalk)
 
@@ -537,7 +584,8 @@ END SUBROUTINE metropolis_real
    real(8), intent(inout), dimension(3) :: derivative 
    !real(8) :: mu_t
    real(8), intent(in) :: mu_t
- 
+
+   write(*,*)"In the sgd subroutine" 
    call vmc(beta_r,beta_s,Jrs,energy,energy_err,derivative)
    !mu_t    = (1.d0 - dble(count)/dble(nstep2)) !**(0.7)     
    beta_r  = beta_r - mu_t*derivative(1)
