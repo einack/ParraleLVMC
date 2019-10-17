@@ -67,7 +67,7 @@ MODULE functions
 
     ! MPI stuff
     integer :: nprocs, rank, ierr
-    integer :: loc_size, loc_size_spins, loc_size_vmc, lw_bound_vmc, buff_2d_size 
+    integer :: loc_size, loc_size_spins, loc_nstep1_vmc, lw_bound_vmc, buff_2d_size 
     integer :: low_bound, up_bound, mid_bound, rest, offset
     character(len = 15) :: msg
 
@@ -337,22 +337,22 @@ MODULE functions
             close(14)
         endif 
 
-        loc_size_vmc = int( nstep1 / nprocs )
+        loc_nstep1_vmc = int( nstep1 / nprocs )
         rest = mod(nstep1, nprocs)
         offset = 0
-        lw_bound_vmc = rank * loc_size_vmc + 1 
+        lw_bound_vmc = rank * loc_nstep1_vmc + 1 
 
         ! Load balancing: Distribution of extra pay load from bottom
         if (rest /= 0 .and. rank >= nprocs - rest ) then 
             offset = nprocs - rest
-            loc_size_vmc = loc_size_vmc + 1
-            lw_bound_vmc = rank * loc_size_vmc + 1 - offset
+            loc_nstep1_vmc = loc_nstep1_vmc + 1
+            lw_bound_vmc = rank * loc_nstep1_vmc + 1 - offset
         end if
 
         write(*,*)"Rank: ",rank, "Lower_bound: ", lw_bound_vmc
 
         ! Allocate local buff to hold local random numbers
-        allocate(loc_rand_2d(buff_2d_size, loc_size_vmc) )
+        allocate(loc_rand_2d(buff_2d_size, loc_nstep1_vmc) )
 
         ! Computing of local sizes and displacement by root for distrbution
         allocate(displ(nprocs) )
@@ -361,16 +361,16 @@ MODULE functions
             offset = nprocs - rest
 
             !All have the same load until laod balancing is required. 
-            scounts = loc_size_vmc * buff_2d_size
+            scounts = loc_nstep1_vmc * buff_2d_size
             displ(1) = 0
 
             do i=1, nprocs-1
 
                 if (rest /= 0 .and. i >= nprocs - rest ) then 
-                    scounts(i+1) = (loc_size_vmc + 1) * buff_2d_size
-                    displ(i+1) = (  ( i * (loc_size_vmc + 1) + 1 - offset ) - 1 ) * ( buff_2d_size ) 
+                    scounts(i+1) = (loc_nstep1_vmc + 1) * buff_2d_size
+                    displ(i+1) = (  ( i * (loc_nstep1_vmc + 1) + 1 - offset ) - 1 ) * ( buff_2d_size ) 
                 else
-                    displ(i+1) = (  ( (i * loc_size_vmc) + 1) - 1 ) * ( buff_2d_size ) 
+                    displ(i+1) = (  ( (i * loc_nstep1_vmc) + 1) - 1 ) * ( buff_2d_size ) 
                 end if
                 
             end do
@@ -380,11 +380,11 @@ MODULE functions
 
         if( rank == 0 .and. debug) write(*,*)"Displacements: ", displ
         if( rank == 0 .and. debug) write(*,*)"Send counts : ", scounts 
-        write(*,*) "Rank", rank, "Local size im vmc: ",loc_size_vmc
+        write(*,*) "Rank", rank, "Local size im vmc: ",loc_nstep1_vmc
 
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
-        call MPI_Scatterv(randnumbers_2d,scounts, displ, MPI_DOUBLE, loc_rand_2d, buff_2d_size * loc_size_vmc, &
+        call MPI_Scatterv(randnumbers_2d,scounts, displ, MPI_DOUBLE, loc_rand_2d, buff_2d_size * loc_nstep1_vmc, &
             MPI_DOUBLE,0, MPI_COMM_WORLD, ierr  )
         call utils_mpi(ierr, rank, 'Scatter of 2d Random numbers ')
 
@@ -416,8 +416,8 @@ MODULE functions
         call MPI_Barrier(MPI_COMM_WORLD, ierr)
 
 
-        allocate(var_E_buff(loc_size_vmc))
-        DO it = 1, loc_size_vmc !, nstep1
+        allocate(var_E_buff(loc_nstep1_vmc))
+        DO it = 1, loc_nstep1_vmc !, nstep1
             !rn = rand()
              
             loc_nstep1 = it
@@ -650,7 +650,7 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
     it = 1
     do iwalk = 1, nwalk
                
-        imoveact = INT(( loc_rand_2d( (it + 1) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
+        imoveact = INT(( loc_rand_2d( (it + 1) + (2 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
         spin(imoveact,iwalk) = -spin(imoveact,iwalk)
 
@@ -659,7 +659,7 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
  
         prob   = exp(-2.d0*beta_r*deltaE+dshadow) 
      
-        prn = loc_rand_2d( (it + 2) + (4 * (iwalk - 1 )) , loc_nstep1 )  
+        prn = loc_rand_2d( (it + 2) + (2 * (iwalk - 1 )) , loc_nstep1 )  
 
         IF(prob .GE. 1.D0 )THEN
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
