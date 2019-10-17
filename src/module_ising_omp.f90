@@ -302,8 +302,8 @@ MODULE functions_omp
         real(8), intent(out) :: var_E
         real(8), intent(out), dimension(3) :: der_var_E
         integer :: iwalk
-        REAL(8) :: deltaE_r, deltaE_l,prob_l,prob_r
-        REAL(8) :: ds_l, ds_r
+        REAL(8) :: deltaE_l,prob_l
+        REAL(8) :: ds_l
         INTEGER :: stobemoved_l, stobemoved_r
         REAL(8) :: ls_eloc, rs_eloc ,avg_clas, ls_avg_clas, rs_avg_clas
         REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
@@ -313,7 +313,6 @@ MODULE functions_omp
         Real(8) :: der_locE_r , der_locE_rs, der_locE_s
 
         !OMP stuff
-        integer :: it
         integer, intent(in) :: loc_nstep1
 
         avg_clas   =0.d0
@@ -339,9 +338,7 @@ MODULE functions_omp
 
         ! Move a walker
 
-        !$omp parallel
-        it = 1
-
+        !$omp parallel private(stobemoved_l, deltaE_l, ds_l, prob_l, rn, ls_eloc, rs_eloc , lweight, rweight, lEcl_rs, rEcl_rs) 
         
         !$omp do & 
         !$omp& reduction (+: avg_clas, ls_avg_clas, rs_avg_clas, ls_avg_mcla, rs_avg_mcla, ls_avg_eloc) & 
@@ -371,25 +368,29 @@ MODULE functions_omp
             END IF
 
             !stobemoved_r = INT((rand() * Nspins) + 1.d0)
-            stobemoved_r = INT(( randnumbers_2d( (4) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
+            stobemoved_l = INT(( randnumbers_2d( (4) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
-            rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
+            rspin(stobemoved_l,iwalk) = -rspin(stobemoved_l,iwalk)
 
-            deltaE_r = ediff(rspin(1:Nspins,iwalk),stobemoved_r)
-            ds_r     = 2.d0*Jrs*spin(stobemoved_r,iwalk)*rspin(stobemoved_r,iwalk)
-            prob_r   = exp(-beta_s*deltaE_r+ds_r)
+            deltaE_l = ediff(rspin(1:Nspins,iwalk),stobemoved_l)
+            ds_l     = 2.d0*Jrs*spin(stobemoved_l,iwalk)*rspin(stobemoved_l,iwalk)
+            prob_l   = exp(-beta_s*deltaE_l+ds_l)
 
             !rn = rand()
             rn = randnumbers_2d( (5) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
 
-            IF(prob_r .GE. 1.D0 )THEN
+            IF(prob_l .GE. 1.D0 )THEN
                 Eo_r(iwalk) = epot(rspin,iwalk)
-            ELSE IF(DBLE(rn) .LT. prob_r)THEN
+            ELSE IF(DBLE(rn) .LT. prob_l)THEN
                 Eo_r(iwalk) = epot(rspin,iwalk)
-            ELSE IF(DBLE(rn) .GE. prob_r)THEN
-                rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
+            ELSE IF(DBLE(rn) .GE. prob_l)THEN
+                rspin(stobemoved_l,iwalk) = -rspin(stobemoved_l,iwalk)
             END IF
       
+            avg_clas  =    avg_clas  + Eo(iwalk)
+            ls_avg_clas  = ls_avg_clas  + Eo_l(iwalk)
+            rs_avg_clas  = rs_avg_clas  + Eo_r(iwalk)
+
             !***** CUMULATE DATA ****************************************
             CALL is_weight( iwalk, lweight, rweight, lEcl_rs, rEcl_rs, beta_r, Jrs)
 
@@ -397,9 +398,6 @@ MODULE functions_omp
             rs_eloc = -hfield*rweight   + Eo(iwalk)
 
 
-            avg_clas  =    avg_clas  + Eo(iwalk)
-            ls_avg_clas  = ls_avg_clas  + Eo_l(iwalk)
-            rs_avg_clas  = rs_avg_clas  + Eo_r(iwalk)
          
             ls_avg_mcla  = ls_avg_mcla  + lEcl_rs
             rs_avg_mcla  = rs_avg_mcla  + rEcl_rs
@@ -464,7 +462,7 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
     Real(8) :: magn1  
 
     !OMP stuff
-    integer :: it
+    !integer :: it
     integer, intent(in) :: loc_nstep1
 
     avg_clas=0.d0
@@ -495,7 +493,7 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
     do iwalk = 1, nwalk
                
         !imoveact = INT((rand() * Nspins) + 1.d0)
-        imoveact = INT(( randnumbers_2d( (2) + (4 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
+        imoveact = INT(( randnumbers_2d( (2) + (2 * (iwalk - 1 )) , loc_nstep1 )  * Nspins) + 1.d0)
 
         spin(imoveact,iwalk) = -spin(imoveact,iwalk)
 
@@ -504,7 +502,8 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
  
         prob   = exp(-2.d0*beta_r*deltaE+dshadow) 
      
-        prn = rand() 
+        !prn = rand() 
+        prn = randnumbers_2d( (3) + (2 * (iwalk - 1 )) , loc_nstep1 )  
 
         IF(prob .GE. 1.D0 )THEN
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 

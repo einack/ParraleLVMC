@@ -81,6 +81,7 @@ PROGRAM  isingmodel
     nthreads = OMP_GET_NUM_THREADS() 
     Write(*,*) "Total Num of threads : ", nthreads
     Write(*,*) "Total Num of Rand calls: ", cnt
+
     do iwalk = 1, nwalk
     !$omp do 
         do i = 1, Lx
@@ -109,6 +110,8 @@ PROGRAM  isingmodel
 
         end do
     !$omp end do 
+    
+        !$omp barrier    
 
         !$omp single
         ! Compute Potential energies for each walker
@@ -183,7 +186,7 @@ PROGRAM  isingmodel
     write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
     write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
 
-770 format (5(f4.1,1X))
+!770 format (5(f4.1,1X))
 771 format('# No',1x,'Function',1x,'Duration')    
 777 format(1a,1x,a15,1x,f12.6, 'secs')
 END PROGRAM isingmodel
