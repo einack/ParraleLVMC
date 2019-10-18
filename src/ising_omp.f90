@@ -77,7 +77,7 @@ PROGRAM  isingmodel
 
     loc_size_spins = 3
 
-    !$omp parallel
+    !$omp parallel private(low_bound, mid_bound, up_bound)
     nthreads = OMP_GET_NUM_THREADS() 
     Write(*,*) "Total Num of threads : ", nthreads
     Write(*,*) "Total Num of Rand calls: ", cnt
