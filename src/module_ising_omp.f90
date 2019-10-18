@@ -23,7 +23,7 @@ MODULE functions_omp
     REAL(8)         :: dt_rel, dt_in, lweight, rweight, wi, et, mu
 
     INTEGER         :: igg, iwalk, idelta,  nwalk1, imult, idx1, idx2,ispins,i2,i, j, k, usedsize, tau, Nspins
-    INTEGER, PUBLIC :: nstep1, nstep2, igen, count, Maxsons, nsample, checkb, checka
+    INTEGER, PUBLIC :: nstep1, nstep2, igen, Maxsons, nsample, checkb, checka
 
 
     INTEGER,PUBLIC :: m, mes, wal
@@ -157,7 +157,6 @@ MODULE functions_omp
         ! Initialize the arrays for histogram 
         ist = 0.d0
 
-        count=0
 
         open(unit=12,file='results_omp/random.dat', status='unknown')
 
@@ -304,7 +303,7 @@ MODULE functions_omp
         integer :: iwalk
         REAL(8) :: deltaE_l,prob_l
         REAL(8) :: ds_l
-        INTEGER :: stobemoved_l, stobemoved_r
+        INTEGER :: stobemoved_l
         REAL(8) :: ls_eloc, rs_eloc ,avg_clas, ls_avg_clas, rs_avg_clas
         REAL(8) :: ls_avg_mcla,rs_avg_mcla,ls_avg_eloc,rs_avg_eloc
         Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2
@@ -451,7 +450,7 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
     real(8), intent(out) :: var_E
     real(8), intent(out), dimension(3) :: der_var_E
     INTEGER :: iwalk
-    REAL(8) :: enew,prob,deltaE,dshadow,lEcl_rs,rEcl_rs
+    REAL(8) :: prob,deltaE,dshadow,lEcl_rs,rEcl_rs
     INTEGER :: imoveact
     REAL(8) :: prn
     REAL(8) :: ls_eloc,rs_eloc ,avg_clas,ls_avg_clas,rs_avg_clas
@@ -459,7 +458,6 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
     Real(8) :: ecum1,ecum2,ecum3,ecum4,scum1,scum2,rscum1,rscum2 
 
     Real(8) :: der_locE_r , der_locE_rs, der_locE_s
-    Real(8) :: magn1  
 
     !OMP stuff
     !integer :: it
@@ -484,10 +482,12 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
     rscum1 = 0.d0
     rscum2 = 0.d0
 
-    enew  = 0.d0
-    magn1 = 0.d0
-    count = 0
        
+    !$omp parallel private(imoveact, deltaE, dshadow, prob, prn, ls_eloc, rs_eloc , lweight, rweight, lEcl_rs, rEcl_rs) 
+    
+    !$omp do & 
+    !$omp& reduction (+: avg_clas, ls_avg_clas, rs_avg_clas, ls_avg_mcla, rs_avg_mcla, ls_avg_eloc) & 
+    !$omp& reduction (+: rs_avg_eloc, ecum1, ecum2, ecum3, scum1, scum2, rscum1, rscum2) 
 
     ! Move a walker
     do iwalk = 1, nwalk
@@ -509,15 +509,17 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
            ! Eo(iwalk) = Eo(iwalk) + deltaE
             Eo(iwalk) = epot(spin,iwalk)
-            count = count + 1      
         ELSE IF(DBLE(prn) .LT. prob)THEN 
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk)
             Eo(iwalk) = epot(spin,iwalk)
-            count = count + 1
         ELSE IF(DBLE(prn) .GE. prob)THEN
             spin(imoveact,iwalk) = -spin(imoveact,iwalk)
         END IF  
       
+        avg_clas  =    avg_clas  + Eo(iwalk)
+        ls_avg_clas  = ls_avg_clas  + Eo_l(iwalk)
+        rs_avg_clas  = rs_avg_clas  + Eo_r(iwalk)
+
         !***** CUMULATE DATA ****************************************
         CALL is_weight(iwalk,lweight,rweight,lEcl_rs,rEcl_rs,beta_r,Jrs)
 
@@ -525,9 +527,6 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
         rs_eloc = -hfield*rweight   + Eo(iwalk)
 
 
-        avg_clas  =    avg_clas  + Eo(iwalk)
-        ls_avg_clas  = ls_avg_clas  + Eo_l(iwalk)
-        rs_avg_clas  = rs_avg_clas  + Eo_r(iwalk)
      
         ls_avg_mcla  = ls_avg_mcla  + lEcl_rs
         rs_avg_mcla  = rs_avg_mcla  + rEcl_rs
@@ -548,7 +547,9 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
         rscum1 = rscum1 + lEcl_rs*rs_eloc
         rscum2 = rscum2 + rEcl_rs*ls_eloc
       
-        end do
+    end do
+    !$omp end do 
+    !$omp end parallel
 
    
     der_locE_r  = (avg_clas*rs_avg_eloc)/dble((nwalk)**2) - (ecum2)/dble(nwalk) + &
@@ -633,7 +634,7 @@ INTEGER              :: is
 !This function computes the potential energy for one copy of the system (walker)
 !********************************************************************************************
 REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
-REAL(8), DIMENSION(Lx,N1) , INTENT(IN) :: spin
+REAL(8), DIMENSION(Lx,nwalk) , INTENT(IN) :: spin
 INTEGER, INTENT(IN) :: iwalk 
 INTEGER :: i 
 REAL(8) ::  E
