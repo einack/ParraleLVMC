@@ -239,7 +239,7 @@ MODULE functions_omp
 
         buff_2d_size = (nwalk * 4) + 1
         allocate(randnumbers_2d( buff_2d_size, nstep1), stat=ierr)
-        Write(*,*) "Allocated Rand 2d buffer"
+!        Write(*,*) "Allocated Rand 2d buffer"
         randnumbers_2d = 0.0
         do j=1 , nstep1
             it = 0
@@ -286,7 +286,7 @@ MODULE functions_omp
 
         derivative = der/dble(iibavg)
 
-        print*, 'energy', energy, '+/-',energy_err 
+        !print*, 'energy', energy, '+/-',energy_err 
 
         deallocate(randnumbers_2d)
     end subroutine vmc 
@@ -359,9 +359,9 @@ MODULE functions_omp
             rn = randnumbers_2d( (3) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
 
             IF( prob_l .GE. 1.D0 )THEN
-                Eo_l(iwalk) = epot(lspin,iwalk)
+                Eo_l(iwalk) = epot(lspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .LT. prob_l)THEN
-                Eo_l(iwalk) = epot(lspin,iwalk)
+                Eo_l(iwalk) = epot(lspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .GE. prob_l)THEN
                 lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
             END IF
@@ -379,9 +379,9 @@ MODULE functions_omp
             rn = randnumbers_2d( (5) + (4 * (iwalk - 1 )) , loc_nstep1 ) 
 
             IF(prob_l .GE. 1.D0 )THEN
-                Eo_r(iwalk) = epot(rspin,iwalk)
+                Eo_r(iwalk) = epot(rspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .LT. prob_l)THEN
-                Eo_r(iwalk) = epot(rspin,iwalk)
+                Eo_r(iwalk) = epot(rspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .GE. prob_l)THEN
                 rspin(stobemoved_l,iwalk) = -rspin(stobemoved_l,iwalk)
             END IF
@@ -508,10 +508,10 @@ SUBROUTINE metropolis_real(beta_r,Jrs,var_E, der_var_E, loc_nstep1)
         IF(prob .GE. 1.D0 )THEN
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
            ! Eo(iwalk) = Eo(iwalk) + deltaE
-            Eo(iwalk) = epot(spin,iwalk)
+            Eo(iwalk) = epot(spin(1:Nspins,iwalk))
         ELSE IF(DBLE(prn) .LT. prob)THEN 
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk)
-            Eo(iwalk) = epot(spin,iwalk)
+            Eo(iwalk) = epot(spin(1:Nspins,iwalk))
         ELSE IF(DBLE(prn) .GE. prob)THEN
             spin(imoveact,iwalk) = -spin(imoveact,iwalk)
         END IF  
@@ -585,7 +585,7 @@ END SUBROUTINE metropolis_real
    !real(8) :: mu_t
    real(8), intent(in) :: mu_t
 
-   write(*,*)"In the sgd subroutine" 
+ !  write(*,*)"In the sgd subroutine" 
    call vmc(beta_r,beta_s,Jrs,energy,energy_err,derivative)
    !mu_t    = (1.d0 - dble(count)/dble(nstep2)) !**(0.7)     
    beta_r  = beta_r - mu_t*derivative(1)
@@ -633,9 +633,8 @@ INTEGER              :: is
 !********************************************************************************************
 !This function computes the potential energy for one copy of the system (walker)
 !********************************************************************************************
-REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
-REAL(8), DIMENSION(Lx,nwalk) , INTENT(IN) :: spin
-INTEGER, INTENT(IN) :: iwalk 
+REAL(8)  FUNCTION epot(spinsave) RESULT(Y)
+REAL(8), DIMENSION(Nspins) , INTENT(IN) :: spinsave
 INTEGER :: i 
 REAL(8) ::  E
 
@@ -643,7 +642,7 @@ REAL(8) ::  E
 
     !No Periodic Boundary Conditions
     DO i = 1, Lx-1
-        E = E - Jo * (spin(i,iwalk)) * (spin(i+1,iwalk)) !- hlong*spin(i,iwalk)
+        E = E - Jo * (spinsave(i)) * (spinsave(i+1)) !- hlong*spin(i,iwalk)
     END DO
 
     Y = E !- Jo*(spin(Lx,iwalk))*(spin(1,iwalk))  !- hlong*spin(Lx,iwalk)

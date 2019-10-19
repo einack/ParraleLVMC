@@ -260,7 +260,7 @@ MODULE functions_serial
 
         derivative = der/dble(iibavg)
 
-        print*, 'energy', energy, '+/-',energy_err 
+    !    print*, 'energy', energy, '+/-',energy_err 
     end subroutine vmc 
 
 
@@ -320,9 +320,9 @@ MODULE functions_serial
             rn = rand()
 
             IF( prob_l .GE. 1.D0 )THEN
-                Eo_l(iwalk) = epot(lspin,iwalk)
+                Eo_l(iwalk) = epot(lspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .LT. prob_l)THEN
-                Eo_l(iwalk) = epot(lspin,iwalk)
+                Eo_l(iwalk) = epot(lspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .GE. prob_l)THEN
                 lspin(stobemoved_l,iwalk) = -lspin(stobemoved_l,iwalk)
             END IF
@@ -337,9 +337,9 @@ MODULE functions_serial
 
             rn = rand()
             IF(prob_r .GE. 1.D0 )THEN
-                Eo_r(iwalk) = epot(rspin,iwalk)
+                Eo_r(iwalk) = epot(rspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .LT. prob_r)THEN
-                Eo_r(iwalk) = epot(rspin,iwalk)
+                Eo_r(iwalk) = epot(rspin(1:Nspins,iwalk))
             ELSE IF(DBLE(rn) .GE. prob_r)THEN
                 rspin(stobemoved_r,iwalk) = -rspin(stobemoved_r,iwalk)
             END IF
@@ -456,11 +456,11 @@ Real(8) :: magn1
         IF(prob .GE. 1.D0 )THEN
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk) 
            ! Eo(iwalk) = Eo(iwalk) + deltaE
-            Eo(iwalk) = epot(spin,iwalk)
+            Eo(iwalk) = epot(spin(1:Nspins,iwalk))
             count = count + 1      
         ELSE IF(DBLE(prn) .LT. prob)THEN 
             ! mag(iwalk)  = mag(iwalk) + 2.d0*spin(imoveact,iwalk)
-            Eo(iwalk) = epot(spin,iwalk)
+            Eo(iwalk) = epot(spin(1:Nspins,iwalk))
             count = count + 1
         ELSE IF(DBLE(prn) .GE. prob)THEN
             spin(imoveact,iwalk) = -spin(imoveact,iwalk)
@@ -579,22 +579,21 @@ INTEGER              :: is
 !********************************************************************************************
 !This function computes the potential energy for one copy of the system (walker)
 !********************************************************************************************
-REAL(8)  FUNCTION epot(spin,iwalk) RESULT(Y)
-REAL(8), DIMENSION(Lx,N1) , INTENT(IN) :: spin
-INTEGER, INTENT(IN) :: iwalk 
-INTEGER :: i 
-REAL(8) ::  E
-
-    E = 0.d0 
-
-    !No Periodic Boundary Conditions
-    DO i = 1, Lx-1
-        E = E - Jo * (spin(i,iwalk)) * (spin(i+1,iwalk)) !- hlong*spin(i,iwalk)
-    END DO
-
-    Y = E !- Jo*(spin(Lx,iwalk))*(spin(1,iwalk))  !- hlong*spin(Lx,iwalk)
-
-END FUNCTION epot
+  REAL(8)  FUNCTION epot(spinsave) RESULT(Y)
+  REAL(8), DIMENSION(Nspins) , INTENT(IN) :: spinsave
+  INTEGER :: i 
+  REAL(8) ::  E
+  
+      E = 0.d0 
+  
+      !No Periodic Boundary Conditions
+      DO i = 1, Lx-1
+          E = E - Jo * (spinsave(i)) * (spinsave(i+1)) !- hlong*spin(i,iwalk)
+      END DO
+  
+      Y = E !- Jo*(spin(Lx,iwalk))*(spin(1,iwalk))  !- hlong*spin(Lx,iwalk)
+  
+  END FUNCTION epot
 
 !********************************************************************************************
 !This function computes the diiference in potential energy for one copy of the system

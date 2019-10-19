@@ -115,9 +115,9 @@ PROGRAM  isingmodel
 
         !$omp single
         ! Compute Potential energies for each walker
-        Eo(iwalk) = epot(spin,iwalk)
-        Eo_l(iwalk) = epot(lspin,iwalk)
-        Eo_r(iwalk) = epot(rspin,iwalk)
+        Eo(iwalk) = epot(spin(1:Nspins,iwalk))
+        Eo_l(iwalk) = epot(lspin(1:Nspins,iwalk))
+        Eo_r(iwalk) = epot(rspin(1:Nspins,iwalk))
         !$omp end single
 
     end do
