@@ -5,6 +5,7 @@
 PROGRAM  isingmodel
 
     ! Make use of a module
+    Use omp_lib
     USE functions_serial
     
     Implicit none
