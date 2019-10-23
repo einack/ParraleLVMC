@@ -3,8 +3,8 @@ SRC_DIR=src
 OBJ_DIR=objects
 BIN_DIR=bin
 INCLUDE_DIR=objects
-FFLAGS= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
-FFLAGSOMP= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable -fopenmp #-DDEBUG 
+FFLAGS= -O3 -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
+FFLAGSOMP= -O3 -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable -fopenmp -Wintrinsics-std #-DDEBUG 
 
 
 ising_omp.x: setup $(BIN_DIR)/ising_omp.x 
@@ -63,20 +63,17 @@ setup:
 
 test_serial:
 	@mkdir -p results_serial
-	./$(BIN_DIR)/ising_serial.x
+	./$(BIN_DIR)/ising_serial.x < parameters.txt 
 	#mpirun -np 2 $(BIN_DIR)/ising_mpi.x
 
 test_omp:
 	@mkdir -p results_omp
-	./$(BIN_DIR)/ising_omp.x
+	./$(BIN_DIR)/ising_omp.x < parameters.txt  
 
 test_par:
-	@mkdir -p results_par
-	mpirun -np 2 $(BIN_DIR)/ising_par.x
+	@mkdir -p results_par  
+	mpirun -np 2 $(BIN_DIR)/ising_par.x < parameters.txt  
 
-
-run_ising_serial.x:
-	 ./$(BIN_DIR)/ising_serial.x
 
 clean:
 	rm -f *.dat fort*

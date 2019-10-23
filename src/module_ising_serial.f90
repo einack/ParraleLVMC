@@ -305,6 +305,7 @@ MODULE functions_serial
         !  print*, 'b', ecum1
 
         ! Move a walker
+
         DO iwalk = 1, nwalk
 
             stobemoved_l = INT((rand() * Nspins) + 1.d0) 

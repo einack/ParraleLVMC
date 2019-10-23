@@ -18,10 +18,14 @@ PROGRAM  isingmodel
     real(8) :: energy, energy_err
     real(8), dimension(3):: der, alpha
     real(8) :: timeinit, timef, time1, time3, time4 
+    logical :: file_exists
+    !character(len=10) :: outdir
 
+    !outdir = 'results_omp'
 
     call cpu_time(timeinit)
-
+    
+    !call system("mkdir"  // outdir)
     OPEN(unit=7,File='results_omp/spins.dat',Status='unknown')
     OPEN(unit=8,File='results_omp/energy.dat',Status='unknown')
     OPEN(unit=9,File='results_omp/energy_opt.dat',Status='unknown')
@@ -179,16 +183,29 @@ PROGRAM  isingmodel
     deallocate(rspin)
     deallocate(isnear)
 
-    write(*,fmt=771)
+    !write(*,fmt=771)
 
-    write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
-    write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
-    write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
-    write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
+    !write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
+    !write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
+    !write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
+    !write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
+    
+    INQUIRE(FILE='results_omp/timings.dat', EXIST=file_exists)
+    if (file_exists) then
+        !write(*,*) file_exists
+        OPEN(unit=25,File='results_omp/timings.dat',Status='unknown', access='sequential', POSITION='APPEND')
+        write(25,fmt=770) nthreads, nstep1, nstep2, nwalk, Lx, time1-timeinit, time3-time1, time4-time3, timef-timeinit 
+    else
+        OPEN(unit=25,File='results_omp/timings.dat',Status='unknown', access='sequential', POSITION='APPEND')
+        write(25,'(A9,1x,A6,1x,A6,1x,A6,1x,A6,2x,A15,2x,A15,2x,A15,2x,A15)') '#Nthreads','nstep1', 'nstep2', &
+            'nwalk', 'Lx', 'Before vmc', 'Duration of vmc', 'Duration of sgd', 'Total Runtime' 
+        write(25,fmt=770) nthreads, nstep1, nstep2, nwalk, Lx, time1-timeinit, time3-time1, time4-time3, timef-timeinit 
+    end if    
+    close(25)
 
-!770 format (5(f4.1,1X))
-771 format('# No',1x,'Function',1x,'Duration')    
-777 format(1a,1x,a15,1x,f12.6, 'secs')
+770 format (I9,1x,4(I6,1X),4(f15.3,1X))
+!771 format('# No',1x,'Function',1x,'Duration')    
+!777 format(1a,1x,a15,1x,f12.6, 'secs')
 END PROGRAM isingmodel
 
 ! ********************************************************************************************
