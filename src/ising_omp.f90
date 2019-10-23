@@ -179,16 +179,22 @@ PROGRAM  isingmodel
     deallocate(rspin)
     deallocate(isnear)
 
-    write(*,fmt=771)
+    !write(*,fmt=771)
 
-    write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
-    write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
-    write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
-    write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
+    !write(*,fmt=777)'1', 'Before vmc', time1-timeinit 
+    !write(*,fmt=777)'2', 'Duration of vmc', time3-time1 
+    !write(*,fmt=777)'3', 'Duration of sgd:', time4-time3 
+    !write(*,fmt=777)'4', 'Total Runtime: ', timef-timeinit 
+    
+    OPEN(unit=25,File='results_omp/timings.dat',Status='unknown')
+    write(25,'(A6,1x,A6,1x,A6,1x,A6,2x,A15,2x,A15,2x,A15,2x,A15)') '#nstep1', 'nstep2', 'nwalk', 'Lx', 'Before vmc', &
+        'Duration of vmc', 'Duration of sgd', 'Total Runtime' 
+    write(25,fmt=770) nstep1, nstep2, nwalk, Lx, time1-timeinit, time3-time1, time4-time3, timef-timeinit 
+    close(25)
 
-!770 format (5(f4.1,1X))
-771 format('# No',1x,'Function',1x,'Duration')    
-777 format(1a,1x,a15,1x,f12.6, 'secs')
+770 format (4(I6,1X),4(f15.3,1X))
+!771 format('# No',1x,'Function',1x,'Duration')    
+!777 format(1a,1x,a15,1x,f12.6, 'secs')
 END PROGRAM isingmodel
 
 ! ********************************************************************************************

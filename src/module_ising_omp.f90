@@ -86,10 +86,11 @@ MODULE functions_omp
 
         ! Parameters initialization
 
-        OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
-        READ(17,*)
-        READ(17,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 , beta_r, beta_s, Jrs
-        CLOSE(17)
+        !OPEN(UNIT=17,FILE='parameters.txt', STATUS='unknown')
+        OPEN(UNIT=5, STATUS='old')
+        READ(5,*)
+        READ(5,*) Jo, hfield, hlong, nstep1, nstep2, nwalk, mu, Lx, seed1 , beta_r, beta_s, Jrs
+        CLOSE(5)
 
         isone = 1
         isone4 = 1
