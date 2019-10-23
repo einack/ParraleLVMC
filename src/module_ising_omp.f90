@@ -159,7 +159,7 @@ MODULE functions_omp
         ist = 0.d0
 
 
-        open(unit=12,file='results_omp/random.dat', status='unknown')
+        !open(unit=12,file='results_omp/random.dat', status='unknown')
 
     END SUBROUTINE initialize
 !********************************************************************************************
@@ -215,7 +215,7 @@ MODULE functions_omp
     rand=min(AM*iy,RNMX)
     !write(*,*)"seed : ", seed_rnd, "Random No: ", rand
 
-    write(12,*)"Seed", seed_rnd, "Random No: ", rand
+    !write(12,*)"Seed", seed_rnd, "Random No: ", rand
     return
     end function
 !C  (C) Copr. 1986-92 Numerical Recipes Software (9`3j32150.
