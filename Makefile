@@ -3,8 +3,8 @@ SRC_DIR=src
 OBJ_DIR=objects
 BIN_DIR=bin
 INCLUDE_DIR=objects
-FFLAGS= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
-FFLAGSOMP= -g -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable -fopenmp #-DDEBUG 
+FFLAGS= -O3 -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable  #-DDEBUG 
+FFLAGSOMP= -O3 -std=f2003 -finline-functions -fcheck=all -I$(INCLUDE_DIR) -Wtabs -Wall -Wunused-variable -fopenmp -Wintrinsics-std #-DDEBUG 
 
 
 ising_omp.x: setup $(BIN_DIR)/ising_omp.x 

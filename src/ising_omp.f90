@@ -19,9 +19,13 @@ PROGRAM  isingmodel
     real(8), dimension(3):: der, alpha
     real(8) :: timeinit, timef, time1, time3, time4 
     logical :: file_exists
+    !character(len=10) :: outdir
+
+    !outdir = 'results_omp'
 
     call cpu_time(timeinit)
-
+    
+    !call system("mkdir"  // outdir)
     OPEN(unit=7,File='results_omp/spins.dat',Status='unknown')
     OPEN(unit=8,File='results_omp/energy.dat',Status='unknown')
     OPEN(unit=9,File='results_omp/energy_opt.dat',Status='unknown')
@@ -189,10 +193,10 @@ PROGRAM  isingmodel
     INQUIRE(FILE='results_omp/timings.dat', EXIST=file_exists)
     if (file_exists) then
         !write(*,*) file_exists
-        OPEN(unit=25,File='results_omp/timings.dat',Status='old', access='sequential', POSITION='APPEND')
+        OPEN(unit=25,File='results_omp/timings.dat',Status='unknown', access='sequential', POSITION='APPEND')
         write(25,fmt=770) nthreads, nstep1, nstep2, nwalk, Lx, time1-timeinit, time3-time1, time4-time3, timef-timeinit 
     else
-        OPEN(unit=25,File='results_omp/timings.dat',Status='old', access='sequential', POSITION='APPEND')
+        OPEN(unit=25,File='results_omp/timings.dat',Status='unknown', access='sequential', POSITION='APPEND')
         write(25,'(A9,1x,A6,1x,A6,1x,A6,1x,A6,2x,A15,2x,A15,2x,A15,2x,A15)') '#Nthreads','nstep1', 'nstep2', &
             'nwalk', 'Lx', 'Before vmc', 'Duration of vmc', 'Duration of sgd', 'Total Runtime' 
         write(25,fmt=770) nthreads, nstep1, nstep2, nwalk, Lx, time1-timeinit, time3-time1, time4-time3, timef-timeinit 
